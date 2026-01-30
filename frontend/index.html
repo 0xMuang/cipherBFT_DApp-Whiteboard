@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🖱️ CipherBFT Onchain Mouse Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            overflow: hidden;
+        }
+        
+        #canvas-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        /* 커서 스타일 */
+        .cursor {
+            position: absolute;
+            pointer-events: none;
+            transition: all 0.05s linear;
+            z-index: 100;
+        }
+        
+        .cursor-pointer {
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 16px solid var(--cursor-color, #00ff88);
+            transform: rotate(-45deg);
+            filter: drop-shadow(0 0 4px var(--cursor-color, #00ff88));
+        }
+        
+        .cursor-label {
+            position: absolute;
+            left: 16px;
+            top: 10px;
+            background: var(--cursor-color, #00ff88);
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        
+        /* 상태 패널 */
+        #status-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-width: 280px;
+            z-index: 1000;
+        }
+        
+        #status-panel h1 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #00ff88;
+        }
+        
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .status-label {
+            color: #888;
+        }
+        
+        .status-value {
+            color: #fff;
+            font-family: monospace;
+        }
+        
+        .status-value.connected {
+            color: #00ff88;
+        }
+        
+        .status-value.disconnected {
+            color: #ff4444;
+        }
+        
+        /* TX 카운터 */
+        #tx-counter {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .tx-stat {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        /* 유저 리스트 */
+        #user-list {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-width: 200px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+        
+        #user-list h2 {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 10px;
+        }
+        
+        .user-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 0;
+        }
+        
+        .user-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        
+        /* 연결 버튼 */
+        #connect-btn {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            color: #000;
+            border: none;
+            padding: 15px 40px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+        
+        #connect-btn:hover {
+            transform: translateX(-50%) scale(1.05);
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+        }
+        
+        #connect-btn:disabled {
+            background: #444;
+            cursor: not-allowed;
+        }
+        
+        /* 로그 */
+        #event-log {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 350px;
+            max-height: 150px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 11px;
+            z-index: 1000;
+        }
+        
+        .log-entry {
+            color: #888;
+            margin-bottom: 3px;
+        }
+        
+        .log-entry.tx {
+            color: #00ff88;
+        }
+        
+        .log-entry.event {
+            color: #88ccff;
+        }
+        
+        .log-entry.error {
+            color: #ff4444;
+        }
+        
+        /* 그리드 배경 */
+        #grid-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="grid-bg"></div>
+    <div id="canvas-container"></div>
+    
+    <!-- 상태 패널 -->
+    <div id="status-panel">
+        <h1>🖱️ Onchain Mouse Tracker</h1>
+        <div class="status-row">
+            <span class="status-label">Network</span>
+            <span class="status-value">CipherBFT L1</span>
+        </div>
+        <div class="status-row">
+            <span class="status-label">Status</span>
+            <span class="status-value disconnected" id="connection-status">Disconnected</span>
+        </div>
+        <div class="status-row">
+            <span class="status-label">Block Time</span>
+            <span class="status-value">~10ms</span>
+        </div>
+        <div class="status-row">
+            <span class="status-label">My Position</span>
+            <span class="status-value" id="my-position">-</span>
+        </div>
+        
+        <div id="tx-counter">
+            <div class="tx-stat">
+                <span class="status-label">TX Sent</span>
+                <span class="status-value" id="tx-sent">0</span>
+            </div>
+            <div class="tx-stat">
+                <span class="status-label">Events Received</span>
+                <span class="status-value" id="events-received">0</span>
+            </div>
+            <div class="tx-stat">
+                <span class="status-label">Avg Latency</span>
+                <span class="status-value" id="avg-latency">-</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 유저 리스트 -->
+    <div id="user-list">
+        <h2>👥 Active Users</h2>
+        <div id="users"></div>
+    </div>
+    
+    <!-- 이벤트 로그 -->
+    <div id="event-log">
+        <div class="log-entry">Waiting for connection...</div>
+    </div>
+    
+    <!-- 연결 버튼 -->
+    <button id="connect-btn">🔗 Connect Wallet & Join</button>
+
+    <!-- ethers.js CDN -->
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+    
+    <script>
+        // ===== 설정 =====
+        const CONFIG = {
+            // Custom L1 Network
+            chainId: 85300,
+            chainName: 'CipherBFT L1',
+            rpcUrl: 'https://jsonrpc.cipherbft.xyz/',
+            wsUrl: 'wss://jsonrpc.cipherbft.xyz/', // WebSocket for subscriptions (확인 필요)
+            blockExplorer: '', // TODO: 블록 익스플로러 URL
+            
+            // 배포된 컨트랙트 주소 (TODO: 실제 배포 후 교체)
+            contractAddress: '0x0000000000000000000000000000000000000000',
+            
+            // 마우스 이동 업데이트 간격 (ms)
+            updateInterval: 50, // 50ms마다 TX 전송
+            
+            // 색상 팔레트
+            colors: [
+                '#00ff88', '#ff6b6b', '#4ecdc4', '#ffe66d', 
+                '#95e1d3', '#f38181', '#aa96da', '#fcbad3',
+                '#a8d8ea', '#ff9a3c', '#155263', '#c9b1ff'
+            ]
+        };
+        
+        // 컨트랙트 ABI (필요한 함수만)
+        const CONTRACT_ABI = [
+            "function join(string nickname) external",
+            "function moveCursor(uint16 x, uint16 y) external",
+            "function leave() external",
+            "function getActiveUsers() view returns (address[])",
+            "function getUserInfo(address user) view returns (string nickname, uint16 x, uint16 y, bool isActive)",
+            "event CursorMoved(address indexed user, uint16 x, uint16 y, uint256 timestamp)",
+            "event UserJoined(address indexed user, string nickname)",
+            "event UserLeft(address indexed user)"
+        ];
+        
+        // ===== 상태 =====
+        let provider = null;
+        let signer = null;
+        let contract = null;
+        let wsProvider = null;
+        let myAddress = null;
+        let isJoined = false;
+        
+        // 커서 상태
+        const cursors = new Map(); // address -> {element, nickname, color}
+        let lastSentPosition = { x: 0, y: 0 };
+        let pendingPosition = null;
+        let updateTimer = null;
+        
+        // 통계
+        let stats = {
+            txSent: 0,
+            eventsReceived: 0,
+            latencies: []
+        };
+        
+        // ===== DOM 요소 =====
+        const canvasContainer = document.getElementById('canvas-container');
+        const connectBtn = document.getElementById('connect-btn');
+        const connectionStatus = document.getElementById('connection-status');
+        const myPositionEl = document.getElementById('my-position');
+        const txSentEl = document.getElementById('tx-sent');
+        const eventsReceivedEl = document.getElementById('events-received');
+        const avgLatencyEl = document.getElementById('avg-latency');
+        const usersEl = document.getElementById('users');
+        const eventLog = document.getElementById('event-log');
+        
+        // ===== 로깅 =====
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            eventLog.appendChild(entry);
+            eventLog.scrollTop = eventLog.scrollHeight;
+            
+            // 최대 50개 로그 유지
+            while (eventLog.children.length > 50) {
+                eventLog.removeChild(eventLog.firstChild);
+            }
+        }
+        
+        // ===== 커서 관리 =====
+        function getColorForAddress(address) {
+            const index = parseInt(address.slice(-4), 16) % CONFIG.colors.length;
+            return CONFIG.colors[index];
+        }
+        
+        function createCursor(address, nickname) {
+            if (cursors.has(address)) return;
+            
+            const color = getColorForAddress(address);
+            
+            const cursor = document.createElement('div');
+            cursor.className = 'cursor';
+            cursor.style.setProperty('--cursor-color', color);
+            cursor.innerHTML = `
+                <div class="cursor-pointer"></div>
+                <div class="cursor-label">${nickname}</div>
+            `;
+            
+            canvasContainer.appendChild(cursor);
+            cursors.set(address, { element: cursor, nickname, color });
+            
+            updateUserList();
+        }
+        
+        function updateCursor(address, x, y) {
+            const cursor = cursors.get(address);
+            if (!cursor) return;
+            
+            // 화면 좌표로 변환 (0-65535 -> 화면 크기)
+            const screenX = (x / 65535) * window.innerWidth;
+            const screenY = (y / 65535) * window.innerHeight;
+            
+            cursor.element.style.left = `${screenX}px`;
+            cursor.element.style.top = `${screenY}px`;
+        }
+        
+        function removeCursor(address) {
+            const cursor = cursors.get(address);
+            if (cursor) {
+                cursor.element.remove();
+                cursors.delete(address);
+                updateUserList();
+            }
+        }
+        
+        function updateUserList() {
+            usersEl.innerHTML = '';
+            cursors.forEach((cursor, address) => {
+                const item = document.createElement('div');
+                item.className = 'user-item';
+                item.innerHTML = `
+                    <div class="user-dot" style="background: ${cursor.color}"></div>
+                    <span>${cursor.nickname} ${address === myAddress ? '(me)' : ''}</span>
+                `;
+                usersEl.appendChild(item);
+            });
+        }
+        
+        // ===== 통계 업데이트 =====
+        function updateStats() {
+            txSentEl.textContent = stats.txSent;
+            eventsReceivedEl.textContent = stats.eventsReceived;
+            
+            if (stats.latencies.length > 0) {
+                const avg = stats.latencies.slice(-20).reduce((a, b) => a + b, 0) / Math.min(stats.latencies.length, 20);
+                avgLatencyEl.textContent = `${avg.toFixed(1)}ms`;
+            }
+        }
+        
+        // ===== 지갑 연결 =====
+        async function connectWallet() {
+            try {
+                if (!window.ethereum) {
+                    alert('MetaMask를 설치해주세요!');
+                    return;
+                }
+                
+                log('Connecting wallet...');
+                connectBtn.disabled = true;
+                connectBtn.textContent = '⏳ Connecting...';
+                
+                // 네트워크 확인/추가
+                try {
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: `0x${CONFIG.chainId.toString(16)}` }]
+                    });
+                } catch (switchError) {
+                    if (switchError.code === 4902) {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [{
+                                chainId: `0x${CONFIG.chainId.toString(16)}`,
+                                chainName: CONFIG.chainName,
+                                rpcUrls: [CONFIG.rpcUrl],
+                                blockExplorerUrls: [CONFIG.blockExplorer]
+                            }]
+                        });
+                    }
+                }
+                
+                // 연결
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                await provider.send('eth_requestAccounts', []);
+                signer = provider.getSigner();
+                myAddress = await signer.getAddress();
+                
+                log(`Connected: ${myAddress.slice(0, 6)}...${myAddress.slice(-4)}`, 'tx');
+                
+                // 컨트랙트 연결
+                contract = new ethers.Contract(CONFIG.contractAddress, CONTRACT_ABI, signer);
+                
+                // WebSocket 연결 (이벤트 구독용)
+                await setupEventSubscription();
+                
+                // 세션 참가
+                await joinSession();
+                
+                connectionStatus.textContent = 'Connected';
+                connectionStatus.className = 'status-value connected';
+                connectBtn.textContent = '✅ Connected';
+                
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+                connectBtn.disabled = false;
+                connectBtn.textContent = '🔗 Connect Wallet & Join';
+            }
+        }
+        
+        // ===== 이벤트 구독 =====
+        async function setupEventSubscription() {
+            log('Setting up event subscription...', 'event');
+            
+            // WebSocket provider로 이벤트 구독
+            // WebSocket으로 이벤트 구독
+            wsProvider = new ethers.providers.WebSocketProvider(CONFIG.wsUrl);
+            const wsContract = new ethers.Contract(CONFIG.contractAddress, CONTRACT_ABI, wsProvider);
+            
+            // CursorMoved 이벤트 구독
+            wsContract.on('CursorMoved', (user, x, y, timestamp, event) => {
+                stats.eventsReceived++;
+                
+                // 지연시간 계산 (자신의 TX인 경우)
+                if (user.toLowerCase() === myAddress?.toLowerCase()) {
+                    const latency = Date.now() - Number(timestamp) * 1000;
+                    if (latency > 0 && latency < 5000) {
+                        stats.latencies.push(latency);
+                    }
+                }
+                
+                updateCursor(user, x, y);
+                updateStats();
+            });
+            
+            // UserJoined 이벤트 구독
+            wsContract.on('UserJoined', (user, nickname) => {
+                log(`User joined: ${nickname}`, 'event');
+                createCursor(user, nickname);
+            });
+            
+            // UserLeft 이벤트 구독
+            wsContract.on('UserLeft', (user) => {
+                log(`User left: ${user.slice(0, 8)}...`, 'event');
+                removeCursor(user);
+            });
+            
+            log('Event subscription active!', 'event');
+        }
+        
+        // ===== 세션 참가 =====
+        async function joinSession() {
+            const nickname = `User_${myAddress.slice(-4)}`;
+            
+            log(`Joining as ${nickname}...`, 'tx');
+            
+            // realtime_sendRawTransaction 사용 가능하지만
+            // ethers.js는 기본적으로 eth_sendRawTransaction 사용
+            const tx = await contract.join(nickname);
+            await tx.wait();
+            
+            isJoined = true;
+            stats.txSent++;
+            
+            createCursor(myAddress, nickname);
+            log(`Joined successfully!`, 'tx');
+            
+            // 기존 유저들 로드
+            await loadExistingUsers();
+            
+            // 마우스 이벤트 시작
+            startMouseTracking();
+            
+            updateStats();
+        }
+        
+        // ===== 기존 유저 로드 =====
+        async function loadExistingUsers() {
+            try {
+                const users = await contract.getActiveUsers();
+                for (const user of users) {
+                    if (user.toLowerCase() !== myAddress.toLowerCase()) {
+                        const info = await contract.getUserInfo(user);
+                        if (info.isActive) {
+                            createCursor(user, info.nickname);
+                            updateCursor(user, info.x, info.y);
+                        }
+                    }
+                }
+            } catch (error) {
+                log(`Error loading users: ${error.message}`, 'error');
+            }
+        }
+        
+        // ===== 마우스 트래킹 =====
+        function startMouseTracking() {
+            document.addEventListener('mousemove', (e) => {
+                // 화면 좌표를 0-65535로 변환
+                const x = Math.floor((e.clientX / window.innerWidth) * 65535);
+                const y = Math.floor((e.clientY / window.innerHeight) * 65535);
+                
+                pendingPosition = { x, y };
+                myPositionEl.textContent = `${e.clientX}, ${e.clientY}`;
+                
+                // 자신의 커서는 즉시 업데이트 (로컬)
+                updateCursor(myAddress, x, y);
+            });
+            
+            // 일정 간격으로 TX 전송
+            updateTimer = setInterval(sendPositionUpdate, CONFIG.updateInterval);
+        }
+        
+        async function sendPositionUpdate() {
+            if (!isJoined || !pendingPosition) return;
+            if (pendingPosition.x === lastSentPosition.x && pendingPosition.y === lastSentPosition.y) return;
+            
+            const { x, y } = pendingPosition;
+            lastSentPosition = { x, y };
+            
+            try {
+                // 논블로킹으로 TX 전송 (await 없이)
+                contract.moveCursor(x, y).then(tx => {
+                    stats.txSent++;
+                    updateStats();
+                }).catch(err => {
+                    // 에러 무시 (빈번한 업데이트에서 일부 실패 가능)
+                });
+            } catch (error) {
+                // 무시
+            }
+        }
+        
+        // ===== 이벤트 리스너 =====
+        connectBtn.addEventListener('click', connectWallet);
+        
+        // 페이지 나갈 때 정리
+        window.addEventListener('beforeunload', async () => {
+            if (isJoined && contract) {
+                try {
+                    await contract.leave();
+                } catch (e) {}
+            }
+            if (wsProvider) {
+                wsProvider.destroy();
+            }
+        });
+        
+        // ===== 초기화 =====
+        log('CipherBFT Onchain Mouse Tracker loaded');
+        log('Click "Connect Wallet" to start');
+    </script>
+</body>
+</html>

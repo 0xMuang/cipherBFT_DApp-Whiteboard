@@ -1,0 +1,2751 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collaboration Board - Figma-like Real-time Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            overflow: hidden;
+            color: #fff;
+        }
+
+        /* 메인 캔버스 */
+        #canvas-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        #main-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: #ffffff;
+            z-index: 1;
+        }
+
+        #selection-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        #cursor-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        /* 커서 스타일 */
+        .remote-cursor {
+            position: absolute;
+            pointer-events: none;
+            transition: left 0.05s linear, top 0.05s linear;
+            z-index: 100;
+        }
+
+        .cursor-pointer {
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 16px solid var(--cursor-color, #00ff88);
+            transform: rotate(-45deg);
+            filter: drop-shadow(0 0 4px var(--cursor-color, #00ff88));
+        }
+
+        .cursor-label {
+            position: absolute;
+            left: 16px;
+            top: 10px;
+            background: var(--cursor-color, #00ff88);
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        /* 상단 툴바 */
+        #toolbar {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .tool-group {
+            display: flex;
+            gap: 6px;
+            padding-right: 12px;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .tool-group:last-child {
+            border-right: none;
+            padding-right: 0;
+        }
+
+        .tool-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tool-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+
+        .tool-btn.active {
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            color: #000;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+        }
+
+        /* 색상 팔레트 */
+        #color-palette {
+            display: flex;
+            gap: 3px;
+            flex-wrap: nowrap;
+        }
+
+        .color-btn {
+            width: 18px;
+            height: 18px;
+            border: 2px solid transparent;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .color-btn:hover {
+            transform: scale(1.15);
+        }
+
+        .color-btn.active {
+            border-color: #fff;
+            box-shadow: 0 0 8px currentColor;
+        }
+
+        /* 브러시 크기 */
+        #brush-size {
+            width: 80px;
+            accent-color: #00ff88;
+        }
+
+        #brush-preview {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #brush-dot {
+            background: #fff;
+            border-radius: 50%;
+        }
+
+        /* 좌측 패널 */
+        #left-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-width: 200px;
+            z-index: 1000;
+        }
+
+        #left-panel h1 {
+            font-size: 16px;
+            margin-bottom: 4px;
+            background: linear-gradient(135deg, #00ff88, #00ccff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 16px;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .status-label {
+            color: #888;
+        }
+
+        .status-value {
+            color: #fff;
+            font-family: 'Courier New', monospace;
+        }
+
+        .status-value.connected {
+            color: #00ff88;
+        }
+
+        /* 우측 패널 - 유저 리스트 */
+        #right-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 16px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-width: 180px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        #right-panel h2 {
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 12px;
+        }
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .user-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .user-name {
+            font-size: 12px;
+        }
+
+        /* 레이어 패널 */
+        #layer-panel {
+            position: fixed;
+            right: 20px;
+            top: 240px;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-width: 200px;
+            max-height: 350px;
+            z-index: 1000;
+        }
+
+        .layer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .layer-header h3 {
+            font-size: 13px;
+            margin: 0;
+            color: #888;
+        }
+
+        .layer-content {
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .layer-content.collapsed {
+            display: none;
+        }
+
+        .layer-list {
+            padding: 8px;
+        }
+
+        .layer-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            margin-bottom: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 12px;
+        }
+
+        .layer-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .layer-item.selected {
+            background: rgba(0, 102, 255, 0.3);
+            border: 1px solid #0066ff;
+        }
+
+        .layer-item.locked {
+            opacity: 0.5;
+        }
+
+        .layer-icon {
+            font-size: 14px;
+        }
+
+        .layer-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .layer-actions {
+            display: flex;
+            gap: 4px;
+            padding: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .layer-btn {
+            flex: 1;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .layer-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* 하단 연결 버튼 */
+        #connect-area {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            z-index: 1000;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            color: #000;
+            border: none;
+            padding: 12px 28px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 25px rgba(0, 255, 136, 0.4);
+        }
+
+        .btn:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn.secondary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        /* 모달 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1a1a2e;
+            padding: 30px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            max-width: 450px;
+            width: 90%;
+        }
+
+        .modal h2 {
+            margin-bottom: 16px;
+            color: #00ff88;
+        }
+
+        .modal p {
+            color: #aaa;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .modal input {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        .modal input:focus {
+            outline: none;
+            border-color: #00ff88;
+        }
+
+        .modal .btn-group {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        /* 로그 */
+        #event-log {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 280px;
+            max-height: 150px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            z-index: 1000;
+        }
+
+        .log-entry {
+            color: #666;
+            margin-bottom: 3px;
+        }
+
+        .log-entry.tx { color: #00ff88; }
+        .log-entry.event { color: #00ccff; }
+        .log-entry.error { color: #ff6b6b; }
+
+        /* 스피너 */
+        .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid transparent;
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 텍스트 입력 오버레이 */
+        #text-input-overlay {
+            display: none;
+            position: fixed;
+            z-index: 1500;
+        }
+
+        #text-input-overlay.active {
+            display: block;
+        }
+
+        #text-input-overlay input {
+            padding: 8px 12px;
+            font-size: 16px;
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            background: #fff;
+            color: #000;
+            min-width: 150px;
+        }
+
+        /* 스티키 노트 편집기 */
+        .sticky-editor {
+            position: fixed;
+            z-index: 2000;
+        }
+
+        .sticky-editor-container {
+            display: flex;
+            flex-direction: column;
+            box-shadow: 3px 3px 10px rgba(0,0,0,0.3);
+            border-radius: 4px;
+        }
+
+        .sticky-color-picker {
+            display: flex;
+            gap: 4px;
+            padding: 8px;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .sticky-color-opt {
+            width: 20px;
+            height: 20px;
+            border: 2px solid transparent;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .sticky-color-opt.active {
+            border-color: #333;
+        }
+
+        .sticky-textarea {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 10px;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+            font-family: sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container">
+        <canvas id="main-canvas"></canvas>
+        <canvas id="selection-canvas"></canvas>
+        <div id="cursor-layer"></div>
+    </div>
+
+    <!-- 상단 툴바 -->
+    <div id="toolbar">
+        <div class="tool-group">
+            <button class="tool-btn" data-tool="select" title="Select (V)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
+                </svg>
+            </button>
+        </div>
+        <div class="tool-group">
+            <button class="tool-btn active" data-tool="pen" title="Pen (P)">✏️</button>
+            <button class="tool-btn" data-tool="eraser" title="Eraser (E)">🧽</button>
+        </div>
+        <div class="tool-group">
+            <button class="tool-btn" data-tool="rect" title="Rectangle (R)">⬜</button>
+            <button class="tool-btn" data-tool="ellipse" title="Ellipse (O)">⭕</button>
+            <button class="tool-btn" data-tool="line" title="Line (L)">📏</button>
+            <button class="tool-btn" data-tool="arrow" title="Arrow (A)">➡️</button>
+        </div>
+        <div class="tool-group">
+            <button class="tool-btn" data-tool="sticky" title="Sticky Note (S)">📝</button>
+            <button class="tool-btn" data-tool="text" title="Text (T)">T</button>
+        </div>
+        <div class="tool-group" id="color-palette"></div>
+        <div class="tool-group">
+            <input type="range" id="brush-size" min="1" max="20" value="3">
+            <div id="brush-preview"><div id="brush-dot"></div></div>
+        </div>
+        <div class="tool-group">
+            <button class="tool-btn" id="clear-btn" title="Clear Canvas">🗑️</button>
+        </div>
+    </div>
+
+    <!-- 좌측 상태 패널 -->
+    <div id="left-panel">
+        <h1>Collaboration Board</h1>
+        <div class="subtitle">Figma-like tool on blockchain</div>
+        <div class="status-row">
+            <span class="status-label">Status</span>
+            <span class="status-value" id="connection-status">Not Connected</span>
+        </div>
+        <div class="status-row">
+            <span class="status-label">Address</span>
+            <span class="status-value" id="my-address">-</span>
+        </div>
+        <div class="status-row">
+            <span class="status-label">Objects</span>
+            <span class="status-value" id="object-count">0</span>
+        </div>
+        <div class="status-row">
+            <span class="status-label">TX Sent</span>
+            <span class="status-value" id="tx-sent">0</span>
+        </div>
+    </div>
+
+    <!-- 우측 유저 패널 -->
+    <div id="right-panel">
+        <h2>Online (<span id="user-count">0</span>)</h2>
+        <div id="users"></div>
+    </div>
+
+    <!-- 레이어 패널 -->
+    <div id="layer-panel">
+        <div class="layer-header">
+            <h3>Layers</h3>
+            <button class="tool-btn" id="layer-toggle" style="width:24px;height:24px;font-size:12px;">-</button>
+        </div>
+        <div class="layer-content">
+            <div class="layer-list" id="layer-list"></div>
+            <div class="layer-actions">
+                <button class="layer-btn" id="bring-front-btn" title="Bring to Front">⬆️</button>
+                <button class="layer-btn" id="send-back-btn" title="Send to Back">⬇️</button>
+                <button class="layer-btn" id="lock-btn" title="Lock">🔒</button>
+                <button class="layer-btn" id="delete-btn" title="Delete">🗑️</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 이벤트 로그 -->
+    <div id="event-log"></div>
+
+    <!-- 연결 버튼 -->
+    <div id="connect-area">
+        <select id="account-select" style="padding:12px 16px;border-radius:25px;background:#333;color:#fff;border:1px solid #555;font-size:12px;">
+            <option value="0">Anvil #0 (0xf39F...2266)</option>
+            <option value="1">Anvil #1 (0x7099...79C8)</option>
+            <option value="2">Anvil #2 (0x3C44...93fC)</option>
+            <option value="3">Anvil #3 (0x90F7...4485)</option>
+            <option value="4">Anvil #4 (0x15d3...2b28)</option>
+            <option value="custom">Custom Key...</option>
+        </select>
+        <input type="text" id="pk-input" placeholder="Enter Private Key (0x...)"
+               style="padding:12px 16px;border-radius:25px;background:#333;color:#fff;border:1px solid #555;font-size:12px;width:250px;display:none;">
+        <button class="btn" id="connect-btn">Connect</button>
+        <button class="btn secondary" id="disconnect-btn" style="display:none;">Disconnect</button>
+        <button class="btn secondary" id="deploy-btn" disabled>Setup Contract</button>
+        <button class="btn secondary" id="join-btn" disabled>Join Room</button>
+    </div>
+
+    <!-- 컨트랙트 모달 -->
+    <div class="modal" id="contract-modal">
+        <div class="modal-content">
+            <h2>Contract Setup</h2>
+            <p>배포된 CollaborationBoard 컨트랙트 주소를 입력하세요.</p>
+            <p style="font-size:11px;color:#888;margin-bottom:12px;">
+                forge 배포 후 출력되는 주소를 복사해서 붙여넣기
+            </p>
+            <input type="text" id="contract-input" placeholder="0x... (deployed contract address)">
+            <div class="btn-group">
+                <button class="btn" id="use-existing-btn">Connect</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 텍스트 입력 -->
+    <div id="text-input-overlay">
+        <input type="text" id="text-input" placeholder="Type here...">
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <script>
+        // ===== 설정 =====
+        const CONFIG = {
+            // 로컬 테스트용 (Anvil)
+            chainId: 31337,
+            chainName: 'Anvil Local',
+            rpcUrl: 'http://localhost:8545',
+            // 실제 배포시:
+            // chainId: 85300,
+            // chainName: 'CipherBFT L1',
+            // rpcUrl: 'https://rpc.cipherbft.xyz/',
+
+            colors: [
+                '#000000', '#ffffff', '#ff0000', '#ff9900',
+                '#ffff00', '#00ff00', '#00ffff', '#0000ff',
+                '#9900ff', '#ff00ff', '#795548', '#607d8b',
+                '#e91e63', '#00bcd4', '#8bc34a', '#ff5722'
+            ],
+
+            stickyColors: [
+                '#fff740', '#ff7eb9', '#7afcff',
+                '#98ff98', '#ffb366', '#e0b0ff'
+            ],
+
+            objectTypes: ['stroke', 'rectangle', 'ellipse', 'line', 'arrow', 'stickyNote', 'text']
+        };
+
+        const CONTRACT_ABI = [
+            // User management
+            "function join(string nickname) external",
+            "function leave() external",
+            "function getActiveUsers() view returns (address[])",
+            "function getUserInfo(address user) view returns (string nickname, bool isActive, uint256 objectCount)",
+
+            // Object creation
+            "function createStroke(int16[] points, uint8 colorIndex, uint8 strokeWidth) external returns (uint256)",
+            "function createShape(uint8 shapeType, int32 x, int32 y, uint16 width, uint16 height, uint16 rotation, uint8 colorIndex, uint8 strokeWidth) external returns (uint256)",
+            "function createStickyNote(int32 x, int32 y, uint16 width, uint16 height, string content, uint8 bgColorIndex) external returns (uint256)",
+            "function createText(int32 x, int32 y, string content, uint8 colorIndex, uint8 fontSize) external returns (uint256)",
+
+            // Transformations
+            "function moveObject(uint256 objectId, int32 newX, int32 newY) external",
+            "function resizeObject(uint256 objectId, uint16 newWidth, uint16 newHeight) external",
+            "function deleteObject(uint256 objectId) external",
+
+            // Layer management
+            "function bringToFront(uint256 objectId) external",
+            "function sendToBack(uint256 objectId) external",
+
+            // Content updates
+            "function updateStickyNote(uint256 objectId, string newContent) external",
+            "function updateText(uint256 objectId, string newContent) external",
+
+            // Lock
+            "function toggleLock(uint256 objectId) external",
+
+            // Canvas
+            "function clearCanvas() external",
+
+            // View
+            "function totalObjects() view returns (uint256)",
+            "function canvasVersion() view returns (uint256)",
+            "function getObjectInfo(uint256 objectId) view returns (address creator, uint8 objectType, uint8 colorIndex, uint8 strokeWidth, uint16 layer, bool isLocked, bool isDeleted)",
+
+            // Events
+            "event ObjectCreated(address indexed creator, uint256 indexed objectId, uint8 objectType, uint8 colorIndex, uint8 strokeWidth, uint16 layer)",
+            "event StrokePoints(uint256 indexed objectId, int16[] points)",
+            "event ShapeGeometry(uint256 indexed objectId, int32 x, int32 y, uint16 width, uint16 height, uint16 rotation)",
+            "event StickyNoteData(uint256 indexed objectId, int32 x, int32 y, uint16 width, uint16 height, string content, uint8 bgColorIndex)",
+            "event TextData(uint256 indexed objectId, int32 x, int32 y, string content, uint8 fontSize)",
+            "event ObjectMoved(address indexed user, uint256 indexed objectId, int32 newX, int32 newY)",
+            "event ObjectResized(address indexed user, uint256 indexed objectId, uint16 newWidth, uint16 newHeight)",
+            "event ObjectDeleted(address indexed user, uint256 indexed objectId)",
+            "event LayerChanged(uint256 indexed objectId, uint16 oldLayer, uint16 newLayer)",
+            "event ContentUpdated(uint256 indexed objectId, string newContent)",
+            "event ObjectLockToggled(uint256 indexed objectId, bool isLocked)",
+            "event UserJoined(address indexed user, string nickname)",
+            "event UserLeft(address indexed user)",
+            "event CanvasCleared(address indexed user)"
+        ];
+
+        // ===== ObjectManager =====
+        class ObjectManager {
+            constructor() {
+                this.objects = new Map();
+                this.layerOrder = [];
+                this.deletedObjects = new Set();
+                this.nextLocalId = -1; // 로컬 임시 ID는 음수
+            }
+
+            addObject(objData) {
+                this.objects.set(objData.id, objData);
+                this._updateLayerOrder();
+                return objData;
+            }
+
+            updateObject(objectId, updates) {
+                const obj = this.objects.get(objectId);
+                if (obj && !this.deletedObjects.has(objectId)) {
+                    Object.assign(obj, updates);
+                    if ('layer' in updates) {
+                        this._updateLayerOrder();
+                    }
+                }
+            }
+
+            deleteObject(objectId) {
+                this.deletedObjects.add(objectId);
+                this._updateLayerOrder();
+            }
+
+            getObject(objectId) {
+                if (this.deletedObjects.has(objectId)) return null;
+                return this.objects.get(objectId);
+            }
+
+            getObjectsInLayerOrder() {
+                return this.layerOrder
+                    .filter(id => !this.deletedObjects.has(id))
+                    .map(id => this.objects.get(id));
+            }
+
+            getObjectAtPoint(x, y) {
+                const sorted = [...this.layerOrder].reverse();
+                for (const id of sorted) {
+                    if (this.deletedObjects.has(id)) continue;
+                    const obj = this.objects.get(id);
+                    if (obj && this._pointInBounds(x, y, obj)) {
+                        return obj;
+                    }
+                }
+                return null;
+            }
+
+            _pointInBounds(x, y, obj) {
+                if (!obj.bounds) return false;
+                const b = obj.bounds;
+                const pad = (obj.strokeWidth || 5) + 5;
+                return x >= b.x - pad && x <= b.x + b.width + pad &&
+                       y >= b.y - pad && y <= b.y + b.height + pad;
+            }
+
+            _updateLayerOrder() {
+                this.layerOrder = [...this.objects.keys()]
+                    .filter(id => !this.deletedObjects.has(id))
+                    .sort((a, b) => {
+                        const objA = this.objects.get(a);
+                        const objB = this.objects.get(b);
+                        return (objA?.layer || 0) - (objB?.layer || 0);
+                    });
+            }
+
+            calculateStrokeBounds(points) {
+                if (!points || points.length < 2) return { x: 0, y: 0, width: 0, height: 0 };
+                let minX = Infinity, minY = Infinity;
+                let maxX = -Infinity, maxY = -Infinity;
+
+                for (let i = 0; i < points.length; i += 2) {
+                    const px = points[i];
+                    const py = points[i + 1];
+                    minX = Math.min(minX, px);
+                    maxX = Math.max(maxX, px);
+                    minY = Math.min(minY, py);
+                    maxY = Math.max(maxY, py);
+                }
+
+                return {
+                    x: minX,
+                    y: minY,
+                    width: maxX - minX || 1,
+                    height: maxY - minY || 1
+                };
+            }
+
+            generateLocalId() {
+                return this.nextLocalId--;
+            }
+
+            clear() {
+                this.objects.clear();
+                this.layerOrder = [];
+                this.deletedObjects.clear();
+            }
+        }
+
+        // ===== SelectionSystem =====
+        class SelectionSystem {
+            constructor(objectManager) {
+                this.objectManager = objectManager;
+                this.selectedIds = new Set();
+                this.selectionBounds = null;
+                this.transformMode = null;
+                this.dragStart = null;
+                this.originalBounds = null;
+                this.originalObjectBounds = new Map();
+                this.handleSize = 10;
+            }
+
+            selectObject(objectId, addToSelection = false) {
+                if (!addToSelection) {
+                    this.selectedIds.clear();
+                }
+                this.selectedIds.add(objectId);
+                this._updateSelectionBounds();
+            }
+
+            deselectAll() {
+                this.selectedIds.clear();
+                this.selectionBounds = null;
+            }
+
+            getSelectedObjects() {
+                return [...this.selectedIds]
+                    .map(id => this.objectManager.getObject(id))
+                    .filter(Boolean);
+            }
+
+            hasSelection() {
+                return this.selectedIds.size > 0;
+            }
+
+            _updateSelectionBounds() {
+                if (this.selectedIds.size === 0) {
+                    this.selectionBounds = null;
+                    return;
+                }
+
+                let minX = Infinity, minY = Infinity;
+                let maxX = -Infinity, maxY = -Infinity;
+
+                for (const id of this.selectedIds) {
+                    const obj = this.objectManager.getObject(id);
+                    if (obj && obj.bounds) {
+                        minX = Math.min(minX, obj.bounds.x);
+                        minY = Math.min(minY, obj.bounds.y);
+                        maxX = Math.max(maxX, obj.bounds.x + obj.bounds.width);
+                        maxY = Math.max(maxY, obj.bounds.y + obj.bounds.height);
+                    }
+                }
+
+                if (minX !== Infinity) {
+                    this.selectionBounds = {
+                        x: minX,
+                        y: minY,
+                        width: maxX - minX,
+                        height: maxY - minY
+                    };
+                }
+            }
+
+            getHandlePositions() {
+                if (!this.selectionBounds) return {};
+                const b = this.selectionBounds;
+                return {
+                    nw: { x: b.x, y: b.y },
+                    n:  { x: b.x + b.width / 2, y: b.y },
+                    ne: { x: b.x + b.width, y: b.y },
+                    e:  { x: b.x + b.width, y: b.y + b.height / 2 },
+                    se: { x: b.x + b.width, y: b.y + b.height },
+                    s:  { x: b.x + b.width / 2, y: b.y + b.height },
+                    sw: { x: b.x, y: b.y + b.height },
+                    w:  { x: b.x, y: b.y + b.height / 2 }
+                };
+            }
+
+            getHandleAtPoint(x, y) {
+                if (!this.selectionBounds) return null;
+                const positions = this.getHandlePositions();
+                for (const [name, pos] of Object.entries(positions)) {
+                    if (Math.abs(x - pos.x) <= this.handleSize &&
+                        Math.abs(y - pos.y) <= this.handleSize) {
+                        return name;
+                    }
+                }
+                return null;
+            }
+
+            isPointInSelection(x, y) {
+                if (!this.selectionBounds) return false;
+                const b = this.selectionBounds;
+                return x >= b.x && x <= b.x + b.width &&
+                       y >= b.y && y <= b.y + b.height;
+            }
+
+            startTransform(mode, startPoint) {
+                this.transformMode = mode;
+                this.dragStart = { ...startPoint };
+                this.originalBounds = this.selectionBounds ? { ...this.selectionBounds } : null;
+                this.originalObjectBounds = new Map();
+
+                for (const id of this.selectedIds) {
+                    const obj = this.objectManager.getObject(id);
+                    if (obj && obj.bounds) {
+                        this.originalObjectBounds.set(id, { ...obj.bounds });
+                    }
+                }
+            }
+
+            updateTransform(currentPoint) {
+                if (!this.transformMode || !this.dragStart) return;
+
+                const dx = currentPoint.x - this.dragStart.x;
+                const dy = currentPoint.y - this.dragStart.y;
+
+                if (this.transformMode === 'move') {
+                    for (const id of this.selectedIds) {
+                        const original = this.originalObjectBounds.get(id);
+                        if (original) {
+                            this.objectManager.updateObject(id, {
+                                bounds: {
+                                    x: original.x + dx,
+                                    y: original.y + dy,
+                                    width: original.width,
+                                    height: original.height
+                                }
+                            });
+                        }
+                    }
+                } else if (this.transformMode.startsWith('resize')) {
+                    this._handleResize(dx, dy);
+                }
+
+                this._updateSelectionBounds();
+            }
+
+            _handleResize(dx, dy) {
+                const mode = this.transformMode.replace('resize-', '');
+                const ob = this.originalBounds;
+                if (!ob) return;
+
+                let scaleX = 1, scaleY = 1;
+                let offsetX = 0, offsetY = 0;
+
+                if (mode.includes('e')) {
+                    scaleX = Math.max(0.1, (ob.width + dx) / ob.width);
+                }
+                if (mode.includes('w')) {
+                    scaleX = Math.max(0.1, (ob.width - dx) / ob.width);
+                    offsetX = dx;
+                }
+                if (mode.includes('s')) {
+                    scaleY = Math.max(0.1, (ob.height + dy) / ob.height);
+                }
+                if (mode.includes('n')) {
+                    scaleY = Math.max(0.1, (ob.height - dy) / ob.height);
+                    offsetY = dy;
+                }
+
+                for (const id of this.selectedIds) {
+                    const original = this.originalObjectBounds.get(id);
+                    if (original) {
+                        const relX = ob.width > 0 ? (original.x - ob.x) / ob.width : 0;
+                        const relY = ob.height > 0 ? (original.y - ob.y) / ob.height : 0;
+
+                        this.objectManager.updateObject(id, {
+                            bounds: {
+                                x: ob.x + offsetX + relX * ob.width * scaleX,
+                                y: ob.y + offsetY + relY * ob.height * scaleY,
+                                width: Math.max(10, original.width * scaleX),
+                                height: Math.max(10, original.height * scaleY)
+                            }
+                        });
+                    }
+                }
+            }
+
+            endTransform() {
+                const result = {
+                    mode: this.transformMode,
+                    objects: this.getSelectedObjects()
+                };
+
+                this.transformMode = null;
+                this.dragStart = null;
+                this.originalBounds = null;
+                this.originalObjectBounds.clear();
+
+                return result;
+            }
+
+            drawSelection(ctx) {
+                if (!this.selectionBounds) return;
+
+                const b = this.selectionBounds;
+
+                // 선택 박스
+                ctx.strokeStyle = '#0066ff';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.strokeRect(b.x, b.y, b.width, b.height);
+                ctx.setLineDash([]);
+
+                // 핸들
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = '#0066ff';
+                ctx.lineWidth = 1;
+
+                const positions = this.getHandlePositions();
+                for (const pos of Object.values(positions)) {
+                    ctx.beginPath();
+                    ctx.rect(
+                        pos.x - this.handleSize / 2,
+                        pos.y - this.handleSize / 2,
+                        this.handleSize,
+                        this.handleSize
+                    );
+                    ctx.fill();
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // ===== CanvasRenderer =====
+        class CanvasRenderer {
+            constructor(canvas, objectManager) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.objectManager = objectManager;
+            }
+
+            render() {
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                const objects = this.objectManager.getObjectsInLayerOrder();
+                for (const obj of objects) {
+                    this._renderObject(obj);
+                }
+            }
+
+            _renderObject(obj) {
+                if (!obj) return;
+                const color = CONFIG.colors[obj.colorIndex] || '#000000';
+
+                switch (obj.type) {
+                    case 'stroke':
+                        this._renderStroke(obj, color);
+                        break;
+                    case 'rectangle':
+                        this._renderRectangle(obj, color);
+                        break;
+                    case 'ellipse':
+                        this._renderEllipse(obj, color);
+                        break;
+                    case 'line':
+                        this._renderLine(obj, color);
+                        break;
+                    case 'arrow':
+                        this._renderArrow(obj, color);
+                        break;
+                    case 'stickyNote':
+                        this._renderStickyNote(obj);
+                        break;
+                    case 'text':
+                        this._renderText(obj, color);
+                        break;
+                }
+            }
+
+            _renderStroke(obj, color) {
+                if (!obj.points || obj.points.length < 4) return;
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(obj.points[0], obj.points[1]);
+
+                for (let i = 2; i < obj.points.length; i += 2) {
+                    this.ctx.lineTo(obj.points[i], obj.points[i + 1]);
+                }
+
+                this.ctx.strokeStyle = color;
+                this.ctx.lineWidth = obj.strokeWidth || 3;
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+                this.ctx.stroke();
+            }
+
+            _renderRectangle(obj, color) {
+                const b = obj.bounds;
+                if (!b) return;
+
+                this.ctx.strokeStyle = color;
+                this.ctx.lineWidth = obj.strokeWidth || 2;
+                this.ctx.strokeRect(b.x, b.y, b.width, b.height);
+            }
+
+            _renderEllipse(obj, color) {
+                const b = obj.bounds;
+                if (!b) return;
+
+                const cx = b.x + b.width / 2;
+                const cy = b.y + b.height / 2;
+
+                this.ctx.beginPath();
+                this.ctx.ellipse(cx, cy, b.width / 2, b.height / 2, 0, 0, Math.PI * 2);
+                this.ctx.strokeStyle = color;
+                this.ctx.lineWidth = obj.strokeWidth || 2;
+                this.ctx.stroke();
+            }
+
+            _renderLine(obj, color) {
+                const b = obj.bounds;
+                if (!b) return;
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(b.x, b.y);
+                this.ctx.lineTo(b.x + b.width, b.y + b.height);
+                this.ctx.strokeStyle = color;
+                this.ctx.lineWidth = obj.strokeWidth || 2;
+                this.ctx.stroke();
+            }
+
+            _renderArrow(obj, color) {
+                const b = obj.bounds;
+                if (!b) return;
+
+                const x1 = b.x, y1 = b.y;
+                const x2 = b.x + b.width, y2 = b.y + b.height;
+                const headLen = 15;
+                const angle = Math.atan2(b.height, b.width);
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(x1, y1);
+                this.ctx.lineTo(x2, y2);
+                this.ctx.lineTo(
+                    x2 - headLen * Math.cos(angle - Math.PI / 6),
+                    y2 - headLen * Math.sin(angle - Math.PI / 6)
+                );
+                this.ctx.moveTo(x2, y2);
+                this.ctx.lineTo(
+                    x2 - headLen * Math.cos(angle + Math.PI / 6),
+                    y2 - headLen * Math.sin(angle + Math.PI / 6)
+                );
+
+                this.ctx.strokeStyle = color;
+                this.ctx.lineWidth = obj.strokeWidth || 2;
+                this.ctx.stroke();
+            }
+
+            _renderStickyNote(obj) {
+                const b = obj.bounds;
+                if (!b) return;
+
+                const bgColor = CONFIG.stickyColors[obj.bgColorIndex || 0] || '#fff740';
+
+                // 그림자
+                this.ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+                this.ctx.shadowBlur = 10;
+                this.ctx.shadowOffsetX = 3;
+                this.ctx.shadowOffsetY = 3;
+
+                // 배경
+                this.ctx.fillStyle = bgColor;
+                this.ctx.fillRect(b.x, b.y, b.width, b.height);
+
+                // 그림자 리셋
+                this.ctx.shadowColor = 'transparent';
+                this.ctx.shadowBlur = 0;
+                this.ctx.shadowOffsetX = 0;
+                this.ctx.shadowOffsetY = 0;
+
+                // 접힌 모서리
+                this.ctx.fillStyle = this._darkenColor(bgColor, 20);
+                this.ctx.beginPath();
+                this.ctx.moveTo(b.x + b.width - 20, b.y);
+                this.ctx.lineTo(b.x + b.width, b.y + 20);
+                this.ctx.lineTo(b.x + b.width, b.y);
+                this.ctx.closePath();
+                this.ctx.fill();
+
+                // 텍스트
+                if (obj.content) {
+                    this.ctx.fillStyle = '#333';
+                    this.ctx.font = '14px sans-serif';
+                    this._wrapText(obj.content, b.x + 10, b.y + 25, b.width - 20, 20);
+                } else {
+                    this.ctx.fillStyle = '#999';
+                    this.ctx.font = 'italic 14px sans-serif';
+                    this.ctx.fillText('Double-click to edit', b.x + 10, b.y + 30);
+                }
+            }
+
+            _renderText(obj, color) {
+                const b = obj.bounds;
+                if (!b) return;
+
+                const fontSize = (obj.strokeWidth || 3) * 5;
+                this.ctx.font = `${fontSize}px sans-serif`;
+                this.ctx.fillStyle = color;
+                this.ctx.fillText(obj.content || '', b.x, b.y + fontSize);
+            }
+
+            _wrapText(text, x, y, maxWidth, lineHeight) {
+                const words = text.split(' ');
+                let line = '';
+                let currentY = y;
+
+                for (const word of words) {
+                    const testLine = line + word + ' ';
+                    const metrics = this.ctx.measureText(testLine);
+
+                    if (metrics.width > maxWidth && line !== '') {
+                        this.ctx.fillText(line, x, currentY);
+                        line = word + ' ';
+                        currentY += lineHeight;
+                    } else {
+                        line = testLine;
+                    }
+                }
+                this.ctx.fillText(line, x, currentY);
+            }
+
+            _darkenColor(hex, percent) {
+                const num = parseInt(hex.replace('#', ''), 16);
+                const amt = Math.round(2.55 * percent);
+                const R = Math.max(0, (num >> 16) - amt);
+                const G = Math.max(0, (num >> 8 & 0x00FF) - amt);
+                const B = Math.max(0, (num & 0x0000FF) - amt);
+                return `#${(1 << 24 | R << 16 | G << 8 | B).toString(16).slice(1)}`;
+            }
+        }
+
+        // ===== 전역 상태 =====
+        let provider = null;
+        let signer = null;
+        let contract = null;
+        let contractAddress = null;
+        let myAddress = null;
+        let isJoined = false;
+
+        let sessionWallet = null;
+        let sessionContract = null;
+
+        let mainCanvas, mainCtx, selectionCanvas, selectionCtx;
+        let objectManager, selectionSystem, canvasRenderer;
+
+        let currentTool = 'pen';
+        let currentColor = '#000000';
+        let currentColorIndex = 0;
+        let brushSize = 3;
+
+        let isDrawing = false;
+        let shapeStart = null;
+        let strokePoints = [];
+        let lastPoint = null;
+
+        const cursors = new Map();
+        let stats = { txSent: 0, objects: 0 };
+
+        // 편집 중인 스티키 노트
+        let editingStickyId = null;
+
+        // DOM 요소
+        const canvasContainer = document.getElementById('canvas-container');
+        const cursorLayer = document.getElementById('cursor-layer');
+        const eventLog = document.getElementById('event-log');
+        const layerList = document.getElementById('layer-list');
+
+        // ===== 초기화 =====
+        function init() {
+            // 캔버스 설정
+            mainCanvas = document.getElementById('main-canvas');
+            mainCtx = mainCanvas.getContext('2d');
+            selectionCanvas = document.getElementById('selection-canvas');
+            selectionCtx = selectionCanvas.getContext('2d');
+
+            // 매니저 초기화 (resizeCanvas보다 먼저!)
+            objectManager = new ObjectManager();
+            selectionSystem = new SelectionSystem(objectManager);
+            canvasRenderer = new CanvasRenderer(mainCanvas, objectManager);
+
+            resizeCanvas();
+
+            // 색상 팔레트 생성
+            const palette = document.getElementById('color-palette');
+            CONFIG.colors.forEach((color, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'color-btn' + (i === 0 ? ' active' : '');
+                btn.style.background = color;
+                btn.dataset.color = color;
+                btn.dataset.index = i;
+                btn.onclick = () => selectColor(color, i, btn);
+                palette.appendChild(btn);
+            });
+
+            // 툴 버튼
+            document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+                btn.onclick = () => selectTool(btn.dataset.tool, btn);
+            });
+
+            // 브러시 크기
+            const brushSizeInput = document.getElementById('brush-size');
+            brushSizeInput.oninput = () => {
+                brushSize = parseInt(brushSizeInput.value);
+                updateBrushPreview();
+            };
+            updateBrushPreview();
+
+            // 캔버스 이벤트
+            mainCanvas.addEventListener('mousedown', handleMouseDown);
+            mainCanvas.addEventListener('mousemove', handleMouseMove);
+            mainCanvas.addEventListener('mouseup', handleMouseUp);
+            mainCanvas.addEventListener('mouseleave', handleMouseUp);
+            mainCanvas.addEventListener('dblclick', handleDoubleClick);
+
+            // 키보드 이벤트
+            document.addEventListener('keydown', handleKeyDown);
+
+            // 레이어 패널 이벤트
+            document.getElementById('layer-toggle').onclick = toggleLayerPanel;
+            document.getElementById('bring-front-btn').onclick = () => handleLayerAction('front');
+            document.getElementById('send-back-btn').onclick = () => handleLayerAction('back');
+            document.getElementById('lock-btn').onclick = () => handleLayerAction('lock');
+            document.getElementById('delete-btn').onclick = () => handleLayerAction('delete');
+
+            // 클리어 버튼
+            document.getElementById('clear-btn').onclick = clearCanvas;
+
+            // 텍스트 입력
+            document.getElementById('text-input').addEventListener('keydown', handleTextInput);
+            document.getElementById('text-input').addEventListener('blur', hideTextInput);
+
+            // 윈도우 리사이즈
+            window.addEventListener('resize', resizeCanvas);
+
+            // 연결 버튼
+            document.getElementById('connect-btn').addEventListener('click', connectWallet);
+            document.getElementById('disconnect-btn').addEventListener('click', disconnectWallet);
+            document.getElementById('account-select').addEventListener('change', function() {
+                const pkInput = document.getElementById('pk-input');
+                if (this.value === 'custom') {
+                    pkInput.style.display = 'block';
+                    pkInput.focus();
+                } else {
+                    pkInput.style.display = 'none';
+                    pkInput.value = '';
+                }
+            });
+            document.getElementById('deploy-btn').addEventListener('click', () => document.getElementById('contract-modal').classList.add('active'));
+            document.getElementById('use-existing-btn').addEventListener('click', useExistingContract);
+            document.getElementById('join-btn').addEventListener('click', joinSession);
+
+            log('Collaboration Board loaded. Connect wallet to start!');
+            render();
+        }
+
+        function resizeCanvas() {
+            const rect = canvasContainer.getBoundingClientRect();
+            mainCanvas.width = rect.width;
+            mainCanvas.height = rect.height;
+            selectionCanvas.width = rect.width;
+            selectionCanvas.height = rect.height;
+            mainCanvas.style.cursor = getCursorStyle();
+            render();
+        }
+
+        function getCursorStyle() {
+            switch (currentTool) {
+                case 'select': return 'default';
+                case 'eraser': return 'cell';
+                case 'text': return 'text';
+                default: return 'crosshair';
+            }
+        }
+
+        function updateBrushPreview() {
+            const brushDot = document.getElementById('brush-dot');
+            brushDot.style.width = brushSize + 'px';
+            brushDot.style.height = brushSize + 'px';
+        }
+
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            eventLog.appendChild(entry);
+            eventLog.scrollTop = eventLog.scrollHeight;
+            while (eventLog.children.length > 50) {
+                eventLog.removeChild(eventLog.firstChild);
+            }
+        }
+
+        // ===== 도구/색상 선택 =====
+        function selectTool(tool, btn) {
+            currentTool = tool;
+            document.querySelectorAll('.tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            mainCanvas.style.cursor = getCursorStyle();
+
+            if (tool !== 'select') {
+                selectionSystem.deselectAll();
+                renderSelection();
+            }
+        }
+
+        function selectColor(color, index, btn) {
+            currentColor = color;
+            currentColorIndex = index;
+            document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        // ===== 렌더링 =====
+        function render() {
+            canvasRenderer.render();
+            renderSelection();
+            updateLayerPanel();
+            updateStats();
+        }
+
+        function renderSelection() {
+            selectionCtx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
+            selectionSystem.drawSelection(selectionCtx);
+        }
+
+        function updateLayerPanel() {
+            const objects = objectManager.getObjectsInLayerOrder().reverse();
+            const selectedIds = selectionSystem.selectedIds;
+
+            layerList.innerHTML = objects.map(obj => {
+                const icon = getTypeIcon(obj.type);
+                const name = getObjectName(obj);
+                const selected = selectedIds.has(obj.id) ? 'selected' : '';
+                const locked = obj.isLocked ? 'locked' : '';
+
+                return `
+                    <div class="layer-item ${selected} ${locked}" data-id="${obj.id}">
+                        <span class="layer-icon">${icon}</span>
+                        <span class="layer-name">${name}</span>
+                        ${obj.isLocked ? '🔒' : ''}
+                    </div>
+                `;
+            }).join('');
+
+            // 클릭 이벤트
+            layerList.querySelectorAll('.layer-item').forEach(item => {
+                item.onclick = () => {
+                    const id = parseInt(item.dataset.id);
+                    selectionSystem.selectObject(id);
+                    render();
+                };
+            });
+
+            document.getElementById('object-count').textContent = objects.length;
+        }
+
+        function getTypeIcon(type) {
+            const icons = {
+                stroke: '✏️',
+                rectangle: '⬜',
+                ellipse: '⭕',
+                line: '📏',
+                arrow: '➡️',
+                stickyNote: '📝',
+                text: 'T'
+            };
+            return icons[type] || '?';
+        }
+
+        function getObjectName(obj) {
+            const prefix = obj.type.charAt(0).toUpperCase() + obj.type.slice(1);
+            if (obj.content) {
+                return `${prefix}: ${obj.content.slice(0, 12)}...`;
+            }
+            return `${prefix} #${obj.id}`;
+        }
+
+        function toggleLayerPanel() {
+            const content = document.querySelector('.layer-content');
+            const btn = document.getElementById('layer-toggle');
+            content.classList.toggle('collapsed');
+            btn.textContent = content.classList.contains('collapsed') ? '+' : '-';
+        }
+
+        function updateStats() {
+            document.getElementById('tx-sent').textContent = stats.txSent;
+        }
+
+        // ===== 마우스 이벤트 =====
+        function handleMouseDown(e) {
+            const { x, y } = getCanvasPoint(e);
+
+            if (currentTool === 'select') {
+                handleSelectMouseDown(x, y, e);
+            } else if (currentTool === 'pen' || currentTool === 'eraser') {
+                handlePenMouseDown(x, y);
+            } else if (['rect', 'ellipse', 'line', 'arrow'].includes(currentTool)) {
+                handleShapeMouseDown(x, y);
+            } else if (currentTool === 'sticky') {
+                handleStickyCreate(x, y);
+            } else if (currentTool === 'text') {
+                showTextInput(e.clientX, e.clientY, x, y);
+            }
+        }
+
+        function handleMouseMove(e) {
+            const { x, y } = getCanvasPoint(e);
+
+            if (currentTool === 'select' && selectionSystem.transformMode) {
+                selectionSystem.updateTransform({ x, y });
+                render();
+            } else if (isDrawing) {
+                if (currentTool === 'pen' || currentTool === 'eraser') {
+                    handlePenMouseMove(x, y);
+                } else if (['rect', 'ellipse', 'line', 'arrow'].includes(currentTool)) {
+                    handleShapeMouseMove(x, y);
+                }
+            }
+        }
+
+        function handleMouseUp(e) {
+            const { x, y } = getCanvasPoint(e);
+
+            if (currentTool === 'select' && selectionSystem.transformMode) {
+                handleSelectMouseUp();
+            } else if (isDrawing) {
+                if (currentTool === 'pen' || currentTool === 'eraser') {
+                    handlePenMouseUp();
+                } else if (['rect', 'ellipse', 'line', 'arrow'].includes(currentTool)) {
+                    handleShapeMouseUp(x, y);
+                }
+            }
+
+            isDrawing = false;
+        }
+
+        function handleDoubleClick(e) {
+            const { x, y } = getCanvasPoint(e);
+            const obj = objectManager.getObjectAtPoint(x, y);
+
+            if (obj && obj.type === 'stickyNote') {
+                showStickyEditor(obj);
+            }
+        }
+
+        function getCanvasPoint(e) {
+            const rect = mainCanvas.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+
+        // ===== Select 도구 =====
+        function handleSelectMouseDown(x, y, e) {
+            const handle = selectionSystem.getHandleAtPoint(x, y);
+
+            if (handle) {
+                selectionSystem.startTransform('resize-' + handle, { x, y });
+            } else if (selectionSystem.isPointInSelection(x, y)) {
+                selectionSystem.startTransform('move', { x, y });
+            } else {
+                const obj = objectManager.getObjectAtPoint(x, y);
+                if (obj) {
+                    selectionSystem.selectObject(obj.id, e.shiftKey);
+                    selectionSystem.startTransform('move', { x, y });
+                } else {
+                    selectionSystem.deselectAll();
+                }
+                render();
+            }
+        }
+
+        function handleSelectMouseUp() {
+            const result = selectionSystem.endTransform();
+
+            if (result.mode && result.objects.length > 0 && sessionContract) {
+                // 온체인에 변환 전송
+                for (const obj of result.objects) {
+                    if (obj.bounds && obj.id >= 0) {
+                        sendMoveObject(obj.id, obj.bounds.x, obj.bounds.y);
+                    }
+                }
+            }
+
+            render();
+        }
+
+        // ===== Pen 도구 =====
+        function handlePenMouseDown(x, y) {
+            isDrawing = true;
+            lastPoint = { x, y };
+            strokePoints = [x, y];
+        }
+
+        function handlePenMouseMove(x, y) {
+            if (!lastPoint) return;
+
+            // 로컬 그리기
+            mainCtx.beginPath();
+            mainCtx.moveTo(lastPoint.x, lastPoint.y);
+            mainCtx.lineTo(x, y);
+            mainCtx.strokeStyle = currentTool === 'eraser' ? '#ffffff' : currentColor;
+            mainCtx.lineWidth = currentTool === 'eraser' ? brushSize * 3 : brushSize;
+            mainCtx.lineCap = 'round';
+            mainCtx.lineJoin = 'round';
+            mainCtx.stroke();
+
+            strokePoints.push(x, y);
+            lastPoint = { x, y };
+        }
+
+        function handlePenMouseUp() {
+            if (strokePoints.length >= 4) {
+                const colorIdx = currentTool === 'eraser' ? 1 : currentColorIndex;
+                const width = currentTool === 'eraser' ? brushSize * 3 : brushSize;
+
+                const obj = {
+                    id: objectManager.generateLocalId(),
+                    type: 'stroke',
+                    creator: myAddress,
+                    colorIndex: colorIdx,
+                    strokeWidth: width,
+                    layer: objectManager.objects.size + 1,
+                    points: [...strokePoints],
+                    bounds: objectManager.calculateStrokeBounds(strokePoints)
+                };
+
+                objectManager.addObject(obj);
+                stats.objects++;
+
+                // 온체인 전송
+                if (sessionContract) {
+                    sendCreateStroke(strokePoints, colorIdx, width, obj.id);
+                }
+
+                render();
+            }
+
+            strokePoints = [];
+            lastPoint = null;
+        }
+
+        // ===== Shape 도구 =====
+        function handleShapeMouseDown(x, y) {
+            isDrawing = true;
+            shapeStart = { x, y };
+        }
+
+        function handleShapeMouseMove(x, y) {
+            if (!shapeStart) return;
+
+            // 캔버스 다시 그리기 + 미리보기
+            canvasRenderer.render();
+
+            mainCtx.strokeStyle = currentColor;
+            mainCtx.lineWidth = brushSize;
+
+            const w = x - shapeStart.x;
+            const h = y - shapeStart.y;
+
+            if (currentTool === 'rect') {
+                mainCtx.strokeRect(shapeStart.x, shapeStart.y, w, h);
+            } else if (currentTool === 'ellipse') {
+                mainCtx.beginPath();
+                mainCtx.ellipse(
+                    shapeStart.x + w / 2,
+                    shapeStart.y + h / 2,
+                    Math.abs(w / 2),
+                    Math.abs(h / 2),
+                    0, 0, Math.PI * 2
+                );
+                mainCtx.stroke();
+            } else if (currentTool === 'line') {
+                mainCtx.beginPath();
+                mainCtx.moveTo(shapeStart.x, shapeStart.y);
+                mainCtx.lineTo(x, y);
+                mainCtx.stroke();
+            } else if (currentTool === 'arrow') {
+                drawArrow(mainCtx, shapeStart.x, shapeStart.y, x, y);
+            }
+        }
+
+        function handleShapeMouseUp(x, y) {
+            if (!shapeStart) return;
+
+            const w = x - shapeStart.x;
+            const h = y - shapeStart.y;
+
+            if (Math.abs(w) < 5 && Math.abs(h) < 5) {
+                shapeStart = null;
+                render();
+                return;
+            }
+
+            const typeMap = {
+                rect: 'rectangle',
+                ellipse: 'ellipse',
+                line: 'line',
+                arrow: 'arrow'
+            };
+
+            const obj = {
+                id: objectManager.generateLocalId(),
+                type: typeMap[currentTool],
+                creator: myAddress,
+                colorIndex: currentColorIndex,
+                strokeWidth: brushSize,
+                layer: objectManager.objects.size + 1,
+                bounds: {
+                    x: Math.min(shapeStart.x, x),
+                    y: Math.min(shapeStart.y, y),
+                    width: Math.abs(w),
+                    height: Math.abs(h)
+                },
+                rotation: 0
+            };
+
+            objectManager.addObject(obj);
+            stats.objects++;
+
+            // 온체인 전송
+            if (sessionContract) {
+                const shapeTypeNum = CONFIG.objectTypes.indexOf(obj.type);
+                sendCreateShape(shapeTypeNum, obj.bounds, 0, currentColorIndex, brushSize, obj.id);
+            }
+
+            shapeStart = null;
+            render();
+        }
+
+        function drawArrow(ctx, x1, y1, x2, y2) {
+            const headLen = 15;
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.lineTo(
+                x2 - headLen * Math.cos(angle - Math.PI / 6),
+                y2 - headLen * Math.sin(angle - Math.PI / 6)
+            );
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(
+                x2 - headLen * Math.cos(angle + Math.PI / 6),
+                y2 - headLen * Math.sin(angle + Math.PI / 6)
+            );
+            ctx.stroke();
+        }
+
+        // ===== Sticky Note =====
+        function handleStickyCreate(x, y) {
+            const obj = {
+                id: objectManager.generateLocalId(),
+                type: 'stickyNote',
+                creator: myAddress,
+                colorIndex: 0,
+                bgColorIndex: 0,
+                strokeWidth: 0,
+                layer: objectManager.objects.size + 1,
+                bounds: { x, y, width: 200, height: 150 },
+                content: ''
+            };
+
+            objectManager.addObject(obj);
+            stats.objects++;
+
+            if (sessionContract) {
+                sendCreateStickyNote(obj.bounds.x, obj.bounds.y, obj.bounds.width, obj.bounds.height, '', 0, obj.id);
+            }
+
+            render();
+            showStickyEditor(obj);
+        }
+
+        function showStickyEditor(obj) {
+            editingStickyId = obj.id;
+
+            const overlay = document.createElement('div');
+            overlay.className = 'sticky-editor';
+            overlay.id = 'sticky-editor-overlay';
+            overlay.style.left = obj.bounds.x + 'px';
+            overlay.style.top = obj.bounds.y + 'px';
+            overlay.style.width = obj.bounds.width + 'px';
+            overlay.style.height = obj.bounds.height + 'px';
+
+            const bgColor = CONFIG.stickyColors[obj.bgColorIndex || 0];
+
+            overlay.innerHTML = `
+                <div class="sticky-editor-container" style="background:${bgColor};width:100%;height:100%;">
+                    <div class="sticky-color-picker">
+                        ${CONFIG.stickyColors.map((c, i) => `
+                            <button class="sticky-color-opt ${i === (obj.bgColorIndex || 0) ? 'active' : ''}"
+                                    data-index="${i}" style="background:${c}"></button>
+                        `).join('')}
+                    </div>
+                    <textarea class="sticky-textarea">${obj.content || ''}</textarea>
+                </div>
+            `;
+
+            document.body.appendChild(overlay);
+
+            const textarea = overlay.querySelector('.sticky-textarea');
+            textarea.focus();
+
+            // 색상 선택
+            overlay.querySelectorAll('.sticky-color-opt').forEach(btn => {
+                btn.onclick = () => {
+                    const idx = parseInt(btn.dataset.index);
+                    overlay.querySelector('.sticky-editor-container').style.background = CONFIG.stickyColors[idx];
+                    overlay.querySelectorAll('.sticky-color-opt').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    obj.bgColorIndex = idx;
+                };
+            });
+
+            // 저장 (blur 시)
+            textarea.addEventListener('blur', () => {
+                setTimeout(() => {
+                    const content = textarea.value;
+                    objectManager.updateObject(obj.id, { content });
+
+                    if (sessionContract && obj.id >= 0) {
+                        sendUpdateStickyNote(obj.id, content);
+                    }
+
+                    overlay.remove();
+                    editingStickyId = null;
+                    render();
+                }, 100);
+            });
+
+            // ESC로 닫기
+            textarea.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    textarea.blur();
+                }
+            });
+        }
+
+        // ===== Text 도구 =====
+        function showTextInput(clientX, clientY, canvasX, canvasY) {
+            const overlay = document.getElementById('text-input-overlay');
+            overlay.style.left = clientX + 'px';
+            overlay.style.top = clientY + 'px';
+            overlay.classList.add('active');
+            overlay.dataset.canvasX = canvasX;
+            overlay.dataset.canvasY = canvasY;
+
+            const input = document.getElementById('text-input');
+            input.value = '';
+            input.focus();
+        }
+
+        function hideTextInput() {
+            document.getElementById('text-input-overlay').classList.remove('active');
+        }
+
+        function handleTextInput(e) {
+            if (e.key === 'Enter') {
+                const overlay = document.getElementById('text-input-overlay');
+                const text = document.getElementById('text-input').value;
+                const x = parseInt(overlay.dataset.canvasX);
+                const y = parseInt(overlay.dataset.canvasY);
+
+                if (text) {
+                    const fontSize = brushSize * 5;
+                    const metrics = mainCtx.measureText(text);
+
+                    const obj = {
+                        id: objectManager.generateLocalId(),
+                        type: 'text',
+                        creator: myAddress,
+                        colorIndex: currentColorIndex,
+                        strokeWidth: Math.min(72, Math.max(8, brushSize * 3)),
+                        layer: objectManager.objects.size + 1,
+                        bounds: { x, y, width: metrics.width || 100, height: fontSize },
+                        content: text
+                    };
+
+                    objectManager.addObject(obj);
+                    stats.objects++;
+
+                    if (sessionContract) {
+                        sendCreateText(x, y, text, currentColorIndex, obj.strokeWidth, obj.id);
+                    }
+
+                    render();
+                }
+
+                hideTextInput();
+            } else if (e.key === 'Escape') {
+                hideTextInput();
+            }
+        }
+
+        // ===== 키보드 이벤트 =====
+        function handleKeyDown(e) {
+            // 입력 중이면 무시
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            switch (e.key) {
+                case 'Delete':
+                case 'Backspace':
+                    deleteSelectedObjects();
+                    break;
+                case 'v':
+                case 'V':
+                    selectTool('select', document.querySelector('[data-tool="select"]'));
+                    break;
+                case 'p':
+                case 'P':
+                    selectTool('pen', document.querySelector('[data-tool="pen"]'));
+                    break;
+                case 'e':
+                case 'E':
+                    selectTool('eraser', document.querySelector('[data-tool="eraser"]'));
+                    break;
+                case 'r':
+                case 'R':
+                    selectTool('rect', document.querySelector('[data-tool="rect"]'));
+                    break;
+                case 'o':
+                case 'O':
+                    selectTool('ellipse', document.querySelector('[data-tool="ellipse"]'));
+                    break;
+                case 'l':
+                case 'L':
+                    selectTool('line', document.querySelector('[data-tool="line"]'));
+                    break;
+                case 'a':
+                case 'A':
+                    if (!e.ctrlKey && !e.metaKey) {
+                        selectTool('arrow', document.querySelector('[data-tool="arrow"]'));
+                    }
+                    break;
+                case 's':
+                case 'S':
+                    if (!e.ctrlKey && !e.metaKey) {
+                        selectTool('sticky', document.querySelector('[data-tool="sticky"]'));
+                    }
+                    break;
+                case 't':
+                case 'T':
+                    selectTool('text', document.querySelector('[data-tool="text"]'));
+                    break;
+                case 'Escape':
+                    selectionSystem.deselectAll();
+                    render();
+                    break;
+            }
+        }
+
+        function deleteSelectedObjects() {
+            const selected = selectionSystem.getSelectedObjects();
+            for (const obj of selected) {
+                objectManager.deleteObject(obj.id);
+                if (sessionContract && obj.id >= 0) {
+                    sendDeleteObject(obj.id);
+                }
+            }
+            selectionSystem.deselectAll();
+            render();
+        }
+
+        // ===== 레이어 액션 =====
+        function handleLayerAction(action) {
+            const selected = selectionSystem.getSelectedObjects();
+            if (selected.length === 0) return;
+
+            for (const obj of selected) {
+                if (action === 'front') {
+                    if (sessionContract && obj.id >= 0) sendBringToFront(obj.id);
+                } else if (action === 'back') {
+                    if (sessionContract && obj.id >= 0) sendSendToBack(obj.id);
+                } else if (action === 'lock') {
+                    obj.isLocked = !obj.isLocked;
+                    if (sessionContract && obj.id >= 0) sendToggleLock(obj.id);
+                } else if (action === 'delete') {
+                    objectManager.deleteObject(obj.id);
+                    if (sessionContract && obj.id >= 0) sendDeleteObject(obj.id);
+                }
+            }
+
+            if (action === 'delete') {
+                selectionSystem.deselectAll();
+            }
+            render();
+        }
+
+        // ===== 캔버스 클리어 =====
+        async function clearCanvas() {
+            if (sessionContract) {
+                try {
+                    await sessionContract.clearCanvas({ gasLimit: 100000 });
+                    stats.txSent++;
+                    log('Canvas cleared', 'tx');
+                } catch (error) {
+                    log(`Clear error: ${error.message}`, 'error');
+                }
+            }
+
+            objectManager.clear();
+            selectionSystem.deselectAll();
+            render();
+        }
+
+        // ===== 온체인 함수 =====
+        async function sendCreateStroke(points, colorIndex, strokeWidth, localId) {
+            if (!sessionContract) return;
+
+            try {
+                const intPoints = points.map(p => Math.round(p));
+                const tx = await sessionContract.createStroke(intPoints, colorIndex, strokeWidth, { gasLimit: 500000 });
+                const receipt = await tx.wait();
+
+                // 실제 objectId 추출
+                const event = receipt.events?.find(e => e.event === 'ObjectCreated');
+                if (event) {
+                    const realId = event.args.objectId.toNumber();
+                    updateLocalIdToRealId(localId, realId);
+                }
+
+                stats.txSent++;
+                log(`Stroke created`, 'tx');
+            } catch (error) {
+                log(`Stroke error: ${error.message}`, 'error');
+            }
+        }
+
+        async function sendCreateShape(shapeType, bounds, rotation, colorIndex, strokeWidth, localId) {
+            if (!sessionContract) return;
+
+            try {
+                const tx = await sessionContract.createShape(
+                    shapeType,
+                    Math.round(bounds.x),
+                    Math.round(bounds.y),
+                    Math.round(bounds.width),
+                    Math.round(bounds.height),
+                    rotation,
+                    colorIndex,
+                    strokeWidth,
+                    { gasLimit: 300000 }
+                );
+                const receipt = await tx.wait();
+
+                const event = receipt.events?.find(e => e.event === 'ObjectCreated');
+                if (event) {
+                    const realId = event.args.objectId.toNumber();
+                    updateLocalIdToRealId(localId, realId);
+                }
+
+                stats.txSent++;
+                log(`Shape created`, 'tx');
+            } catch (error) {
+                log(`Shape error: ${error.message}`, 'error');
+            }
+        }
+
+        async function sendCreateStickyNote(x, y, width, height, content, bgColorIndex, localId) {
+            if (!sessionContract) return;
+
+            try {
+                const tx = await sessionContract.createStickyNote(
+                    Math.round(x), Math.round(y),
+                    Math.round(width), Math.round(height),
+                    content, bgColorIndex,
+                    { gasLimit: 300000 }
+                );
+                const receipt = await tx.wait();
+
+                const event = receipt.events?.find(e => e.event === 'ObjectCreated');
+                if (event) {
+                    const realId = event.args.objectId.toNumber();
+                    updateLocalIdToRealId(localId, realId);
+                }
+
+                stats.txSent++;
+                log(`Sticky note created`, 'tx');
+            } catch (error) {
+                log(`Sticky note error: ${error.message}`, 'error');
+            }
+        }
+
+        async function sendCreateText(x, y, content, colorIndex, fontSize, localId) {
+            if (!sessionContract) return;
+
+            try {
+                const tx = await sessionContract.createText(
+                    Math.round(x), Math.round(y),
+                    content, colorIndex, fontSize,
+                    { gasLimit: 300000 }
+                );
+                const receipt = await tx.wait();
+
+                const event = receipt.events?.find(e => e.event === 'ObjectCreated');
+                if (event) {
+                    const realId = event.args.objectId.toNumber();
+                    updateLocalIdToRealId(localId, realId);
+                }
+
+                stats.txSent++;
+                log(`Text created`, 'tx');
+            } catch (error) {
+                log(`Text error: ${error.message}`, 'error');
+            }
+        }
+
+        async function sendMoveObject(objectId, newX, newY) {
+            if (!sessionContract) return;
+
+            try {
+                await sessionContract.moveObject(objectId, Math.round(newX), Math.round(newY), { gasLimit: 150000 });
+                stats.txSent++;
+            } catch (error) {
+                log(`Move error: ${error.message}`, 'error');
+            }
+        }
+
+        async function sendDeleteObject(objectId) {
+            if (!sessionContract) return;
+
+            try {
+                await sessionContract.deleteObject(objectId, { gasLimit: 100000 });
+                stats.txSent++;
+                log(`Object deleted`, 'tx');
+            } catch (error) {
+                log(`Delete error: ${error.message}`, 'error');
+            }
+        }
+
+        async function sendUpdateStickyNote(objectId, content) {
+            if (!sessionContract) return;
+
+            try {
+                await sessionContract.updateStickyNote(objectId, content, { gasLimit: 200000 });
+                stats.txSent++;
+            } catch (error) {
+                log(`Update error: ${error.message}`, 'error');
+            }
+        }
+
+        async function sendBringToFront(objectId) {
+            if (!sessionContract) return;
+
+            try {
+                await sessionContract.bringToFront(objectId, { gasLimit: 100000 });
+                stats.txSent++;
+            } catch (error) {
+                log(`Layer error: ${error.message}`, 'error');
+            }
+        }
+
+        async function sendSendToBack(objectId) {
+            if (!sessionContract) return;
+
+            try {
+                await sessionContract.sendToBack(objectId, { gasLimit: 100000 });
+                stats.txSent++;
+            } catch (error) {
+                log(`Layer error: ${error.message}`, 'error');
+            }
+        }
+
+        async function sendToggleLock(objectId) {
+            if (!sessionContract) return;
+
+            try {
+                await sessionContract.toggleLock(objectId, { gasLimit: 100000 });
+                stats.txSent++;
+            } catch (error) {
+                log(`Lock error: ${error.message}`, 'error');
+            }
+        }
+
+        function updateLocalIdToRealId(localId, realId) {
+            const obj = objectManager.objects.get(localId);
+            if (obj) {
+                objectManager.objects.delete(localId);
+                obj.id = realId;
+                objectManager.objects.set(realId, obj);
+                objectManager._updateLayerOrder();
+
+                // 선택 상태 업데이트
+                if (selectionSystem.selectedIds.has(localId)) {
+                    selectionSystem.selectedIds.delete(localId);
+                    selectionSystem.selectedIds.add(realId);
+                }
+            }
+        }
+
+        // Anvil 테스트 계정들 (각각 10000 ETH)
+        const ANVIL_ACCOUNTS = [
+            '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+            '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d',
+            '0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a',
+            '0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6',
+            '0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a'
+        ];
+
+        // ===== 지갑 연결 (Anvil 직접 연결) =====
+        async function connectWallet() {
+            try {
+                const accountSelect = document.getElementById('account-select');
+                const selectedValue = accountSelect.value;
+                const pkInput = document.getElementById('pk-input').value.trim();
+                let privateKey;
+                let accountLabel;
+
+                if (selectedValue === 'custom') {
+                    // Custom private key
+                    if (!pkInput) {
+                        log('Please enter a private key', 'error');
+                        return;
+                    }
+                    privateKey = pkInput.startsWith('0x') ? pkInput : '0x' + pkInput;
+                    accountLabel = 'Custom';
+                    log('Connecting with custom private key...');
+                } else {
+                    // Anvil 계정 선택
+                    const accountIndex = parseInt(selectedValue);
+                    privateKey = ANVIL_ACCOUNTS[accountIndex];
+                    accountLabel = `Anvil #${accountIndex}`;
+                    log(`Connecting with ${accountLabel}...`);
+                }
+
+                document.getElementById('connect-btn').disabled = true;
+
+                // Anvil 로컬 노드에 직접 연결
+                provider = new ethers.providers.JsonRpcProvider(CONFIG.rpcUrl);
+
+                // Private key로 지갑 생성
+                signer = new ethers.Wallet(privateKey, provider);
+                myAddress = signer.address;
+
+                document.getElementById('connection-status').textContent = `Connected (${accountLabel})`;
+                document.getElementById('connection-status').classList.add('connected');
+                document.getElementById('my-address').textContent = `${myAddress.slice(0, 6)}...${myAddress.slice(-4)}`;
+                document.getElementById('connect-btn').style.display = 'none';
+                document.getElementById('disconnect-btn').style.display = 'block';
+                document.getElementById('account-select').style.display = 'none';
+                document.getElementById('pk-input').style.display = 'none';
+                document.getElementById('deploy-btn').disabled = false;
+
+                log(`Connected: ${myAddress}`, 'tx');
+
+                // 저장된 컨트랙트 주소 불러오기 (있으면)
+                const savedContract = localStorage.getItem('collaborationContract');
+                if (savedContract) {
+                    document.getElementById('contract-input').value = savedContract;
+                }
+
+            } catch (error) {
+                log(`Connection error: ${error.message}`, 'error');
+                document.getElementById('connect-btn').disabled = false;
+            }
+        }
+
+        function disconnectWallet() {
+            // 상태 초기화
+            provider = null;
+            signer = null;
+            myAddress = null;
+            contract = null;
+            sessionContract = null;
+            contractAddress = null;
+
+            // UI 초기화
+            document.getElementById('connection-status').textContent = 'Disconnected';
+            document.getElementById('connection-status').classList.remove('connected');
+            document.getElementById('my-address').textContent = '';
+            document.getElementById('connect-btn').style.display = 'block';
+            document.getElementById('connect-btn').disabled = false;
+            document.getElementById('disconnect-btn').style.display = 'none';
+            document.getElementById('account-select').style.display = 'block';
+            document.getElementById('account-select').value = '0';
+            document.getElementById('pk-input').style.display = 'none';
+            document.getElementById('pk-input').value = '';
+            document.getElementById('deploy-btn').disabled = true;
+            document.getElementById('deploy-btn').textContent = 'Setup Contract';
+            document.getElementById('join-btn').disabled = true;
+
+            log('Disconnected. Select an account to connect.', 'tx');
+        }
+
+        async function useExistingContract() {
+            const address = document.getElementById('contract-input').value.trim();
+            if (!address || !ethers.utils.isAddress(address)) {
+                alert('Enter valid contract address!');
+                return;
+            }
+
+            contractAddress = address;
+            contract = new ethers.Contract(contractAddress, CONTRACT_ABI, signer);
+
+            try {
+                const version = await contract.canvasVersion();
+                log(`Connected to contract (version ${version})`, 'tx');
+                localStorage.setItem('collaborationContract', contractAddress);
+
+                document.getElementById('contract-modal').classList.remove('active');
+                document.getElementById('deploy-btn').textContent = 'Contract Ready';
+                document.getElementById('join-btn').disabled = false;
+
+            } catch (error) {
+                log(`Invalid contract: ${error.message}`, 'error');
+            }
+        }
+
+        async function joinSession() {
+            const joinBtn = document.getElementById('join-btn');
+
+            try {
+                joinBtn.disabled = true;
+                joinBtn.innerHTML = '<span class="spinner"></span> Joining...';
+
+                // 메인 지갑 직접 사용 (세션 월렛 대신)
+                sessionContract = new ethers.Contract(contractAddress, CONTRACT_ABI, signer);
+
+                const nickname = `Designer_${myAddress.slice(-4)}`;
+
+                // 이미 참가했는지 확인
+                try {
+                    const userInfo = await sessionContract.getUserInfo(myAddress);
+                    if (userInfo.isActive) {
+                        log('Already joined, reconnecting...', 'tx');
+                    } else {
+                        log('Joining room...');
+                        const tx = await sessionContract.join(nickname);
+                        await tx.wait();
+                        stats.txSent++;
+                    }
+                } catch (e) {
+                    // getUserInfo 실패 시 join 시도
+                    log('Joining room...');
+                    const tx = await sessionContract.join(nickname);
+                    await tx.wait();
+                    stats.txSent++;
+                }
+
+                isJoined = true;
+
+                document.getElementById('my-address').textContent = `${myAddress.slice(0, 6)}...${myAddress.slice(-4)}`;
+                createCursor(myAddress, nickname);
+
+                // 이벤트 폴링 시작
+                startEventPolling();
+
+                joinBtn.textContent = 'Joined!';
+                log('Joined! Start collaborating.', 'tx');
+
+            } catch (error) {
+                log(`Join error: ${error.message}`, 'error');
+                joinBtn.disabled = false;
+                joinBtn.textContent = 'Join Room';
+            }
+        }
+
+        // ===== 커서 관리 =====
+        function getColorForAddress(address) {
+            const index = parseInt(address.slice(-4), 16) % CONFIG.colors.length;
+            return CONFIG.colors[index];
+        }
+
+        function createCursor(address, nickname) {
+            if (cursors.has(address.toLowerCase())) return;
+
+            const color = getColorForAddress(address);
+            const cursor = document.createElement('div');
+            cursor.className = 'remote-cursor';
+            cursor.style.setProperty('--cursor-color', color);
+            cursor.innerHTML = `
+                <div class="cursor-pointer"></div>
+                <div class="cursor-label">${nickname}</div>
+            `;
+
+            cursorLayer.appendChild(cursor);
+            cursors.set(address.toLowerCase(), { element: cursor, nickname, color });
+            updateUserList();
+        }
+
+        function updateUserList() {
+            const usersEl = document.getElementById('users');
+            usersEl.innerHTML = '';
+            document.getElementById('user-count').textContent = cursors.size;
+
+            cursors.forEach((cursor, address) => {
+                const isMe = address.toLowerCase() === myAddress?.toLowerCase();
+                const item = document.createElement('div');
+                item.className = 'user-item';
+                item.innerHTML = `
+                    <div class="user-dot" style="background: ${cursor.color}"></div>
+                    <div class="user-name">${cursor.nickname}${isMe ? ' (me)' : ''}</div>
+                `;
+                usersEl.appendChild(item);
+            });
+        }
+
+        // ===== 이벤트 폴링 =====
+        function startEventPolling() {
+            let lastBlock = 0;
+
+            setInterval(async () => {
+                try {
+                    const currentBlock = await provider.getBlockNumber();
+                    if (lastBlock === 0) lastBlock = currentBlock - 1;
+
+                    if (currentBlock > lastBlock) {
+                        await processEvents(lastBlock + 1, currentBlock);
+                        lastBlock = currentBlock;
+                    }
+                } catch (error) {
+                    // 무시
+                }
+            }, 300);
+        }
+
+        async function processEvents(fromBlock, toBlock) {
+            // ObjectCreated
+            const createdEvents = await contract.queryFilter(
+                contract.filters.ObjectCreated(),
+                fromBlock, toBlock
+            );
+
+            for (const event of createdEvents) {
+                const { creator, objectId, objectType, colorIndex, strokeWidth, layer } = event.args;
+                if (creator.toLowerCase() === myAddress?.toLowerCase()) continue;
+
+                // 다른 유저가 만든 오브젝트 - geometry 이벤트 필요
+                log(`New object from ${creator.slice(0, 8)}...`, 'event');
+            }
+
+            // StrokePoints
+            const strokeEvents = await contract.queryFilter(
+                contract.filters.StrokePoints(),
+                fromBlock, toBlock
+            );
+
+            for (const event of strokeEvents) {
+                const { objectId, points } = event.args;
+                const id = objectId.toNumber();
+
+                if (!objectManager.objects.has(id)) {
+                    // 정보 가져오기
+                    try {
+                        const info = await contract.getObjectInfo(id);
+                        if (info.creator.toLowerCase() !== myAddress?.toLowerCase()) {
+                            const obj = {
+                                id,
+                                type: 'stroke',
+                                creator: info.creator,
+                                colorIndex: info.colorIndex,
+                                strokeWidth: info.strokeWidth,
+                                layer: info.layer,
+                                points: points.map(p => p.toNumber ? p.toNumber() : p),
+                                bounds: null
+                            };
+                            obj.bounds = objectManager.calculateStrokeBounds(obj.points);
+                            objectManager.addObject(obj);
+                            render();
+                        }
+                    } catch (e) { }
+                }
+            }
+
+            // ShapeGeometry
+            const shapeEvents = await contract.queryFilter(
+                contract.filters.ShapeGeometry(),
+                fromBlock, toBlock
+            );
+
+            for (const event of shapeEvents) {
+                const { objectId, x, y, width, height, rotation } = event.args;
+                const id = objectId.toNumber();
+
+                if (!objectManager.objects.has(id)) {
+                    try {
+                        const info = await contract.getObjectInfo(id);
+                        if (info.creator.toLowerCase() !== myAddress?.toLowerCase()) {
+                            const obj = {
+                                id,
+                                type: CONFIG.objectTypes[info.objectType],
+                                creator: info.creator,
+                                colorIndex: info.colorIndex,
+                                strokeWidth: info.strokeWidth,
+                                layer: info.layer,
+                                bounds: {
+                                    x: x.toNumber ? x.toNumber() : x,
+                                    y: y.toNumber ? y.toNumber() : y,
+                                    width: width.toNumber ? width.toNumber() : width,
+                                    height: height.toNumber ? height.toNumber() : height
+                                },
+                                rotation: rotation.toNumber ? rotation.toNumber() : rotation
+                            };
+                            objectManager.addObject(obj);
+                            render();
+                        }
+                    } catch (e) { }
+                }
+            }
+
+            // StickyNoteData
+            const stickyEvents = await contract.queryFilter(
+                contract.filters.StickyNoteData(),
+                fromBlock, toBlock
+            );
+
+            for (const event of stickyEvents) {
+                const { objectId, x, y, width, height, content, bgColorIndex } = event.args;
+                const id = objectId.toNumber();
+
+                if (!objectManager.objects.has(id)) {
+                    try {
+                        const info = await contract.getObjectInfo(id);
+                        if (info.creator.toLowerCase() !== myAddress?.toLowerCase()) {
+                            const obj = {
+                                id,
+                                type: 'stickyNote',
+                                creator: info.creator,
+                                colorIndex: info.colorIndex,
+                                bgColorIndex,
+                                strokeWidth: 0,
+                                layer: info.layer,
+                                bounds: {
+                                    x: x.toNumber ? x.toNumber() : x,
+                                    y: y.toNumber ? y.toNumber() : y,
+                                    width: width.toNumber ? width.toNumber() : width,
+                                    height: height.toNumber ? height.toNumber() : height
+                                },
+                                content
+                            };
+                            objectManager.addObject(obj);
+                            render();
+                        }
+                    } catch (e) { }
+                }
+            }
+
+            // TextData
+            const textEvents = await contract.queryFilter(
+                contract.filters.TextData(),
+                fromBlock, toBlock
+            );
+
+            for (const event of textEvents) {
+                const { objectId, x, y, content, fontSize } = event.args;
+                const id = objectId.toNumber();
+
+                if (!objectManager.objects.has(id)) {
+                    try {
+                        const info = await contract.getObjectInfo(id);
+                        if (info.creator.toLowerCase() !== myAddress?.toLowerCase()) {
+                            const obj = {
+                                id,
+                                type: 'text',
+                                creator: info.creator,
+                                colorIndex: info.colorIndex,
+                                strokeWidth: fontSize,
+                                layer: info.layer,
+                                bounds: {
+                                    x: x.toNumber ? x.toNumber() : x,
+                                    y: y.toNumber ? y.toNumber() : y,
+                                    width: 100,
+                                    height: fontSize * 5
+                                },
+                                content
+                            };
+                            objectManager.addObject(obj);
+                            render();
+                        }
+                    } catch (e) { }
+                }
+            }
+
+            // ObjectMoved
+            const movedEvents = await contract.queryFilter(
+                contract.filters.ObjectMoved(),
+                fromBlock, toBlock
+            );
+
+            for (const event of movedEvents) {
+                const { user, objectId, newX, newY } = event.args;
+                if (user.toLowerCase() === myAddress?.toLowerCase()) continue;
+
+                const id = objectId.toNumber();
+                const obj = objectManager.getObject(id);
+                if (obj && obj.bounds) {
+                    obj.bounds.x = newX.toNumber ? newX.toNumber() : newX;
+                    obj.bounds.y = newY.toNumber ? newY.toNumber() : newY;
+                    render();
+                }
+            }
+
+            // ObjectDeleted
+            const deletedEvents = await contract.queryFilter(
+                contract.filters.ObjectDeleted(),
+                fromBlock, toBlock
+            );
+
+            for (const event of deletedEvents) {
+                const { user, objectId } = event.args;
+                if (user.toLowerCase() === myAddress?.toLowerCase()) continue;
+
+                objectManager.deleteObject(objectId.toNumber());
+                render();
+            }
+
+            // CanvasCleared
+            const clearEvents = await contract.queryFilter(
+                contract.filters.CanvasCleared(),
+                fromBlock, toBlock
+            );
+
+            if (clearEvents.length > 0) {
+                const lastClear = clearEvents[clearEvents.length - 1];
+                if (lastClear.args.user.toLowerCase() !== myAddress?.toLowerCase()) {
+                    objectManager.clear();
+                    selectionSystem.deselectAll();
+                    render();
+                    log('Canvas cleared by another user', 'event');
+                }
+            }
+
+            // UserJoined
+            const joinEvents = await contract.queryFilter(
+                contract.filters.UserJoined(),
+                fromBlock, toBlock
+            );
+
+            for (const event of joinEvents) {
+                const { user, nickname } = event.args;
+                if (user.toLowerCase() !== myAddress?.toLowerCase()) {
+                    createCursor(user, nickname);
+                    log(`${nickname} joined`, 'event');
+                }
+            }
+        }
+
+        // ===== 시작 =====
+        window.onerror = function(msg, url, line, col, error) {
+            console.error('Error:', msg, 'Line:', line);
+            alert('JavaScript Error: ' + msg + ' (Line: ' + line + ')');
+            return false;
+        };
+
+        try {
+            init();
+            console.log('Init completed successfully');
+        } catch (e) {
+            console.error('Init error:', e);
+            alert('Init error: ' + e.message);
+        }
+    </script>
+</body>
+</html>
