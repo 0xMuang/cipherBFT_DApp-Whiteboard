@@ -134,6 +134,7 @@ contract CollaborationBoard {
     // 유저 이벤트
     event UserJoined(address indexed user, string nickname);
     event UserLeft(address indexed user);
+    event NicknameUpdated(address indexed user, string newNickname);
     event CanvasCleared(address indexed user);
 
     // 커서 이벤트
@@ -209,6 +210,14 @@ contract CollaborationBoard {
         }
 
         emit UserLeft(msg.sender);
+    }
+
+    /**
+     * @notice 닉네임 변경
+     */
+    function updateNickname(string calldata newNickname) external onlyActiveUser {
+        users[msg.sender].nickname = newNickname;
+        emit NicknameUpdated(msg.sender, newNickname);
     }
 
     /**

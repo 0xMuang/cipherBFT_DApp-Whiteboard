@@ -31,7 +31,7 @@ contract CollaborationBoardTest is Test {
     event CanvasCleared(address indexed user);
 
     function setUp() public {
-        board = new CollaborationBoard();
+        board = new CollaborationBoard(false);
     }
 
     // ===== USER TESTS =====

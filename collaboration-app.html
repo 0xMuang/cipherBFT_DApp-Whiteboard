@@ -4,7 +4,59 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Collaboration Board - Figma-like Real-time Tool</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
+        /* ═══════════════════════════════════════════════════════════════
+           ETHEREAL STUDIO - A warm, sophisticated design system
+           Inspired by premium design tools with a human touch
+        ═══════════════════════════════════════════════════════════════ */
+
+        :root {
+            /* Warm Canvas */
+            --canvas: #F5F3F0;
+            --canvas-grid: rgba(0, 0, 0, 0.04);
+
+            /* Glass Panels - Deep charcoal with warmth */
+            --glass: rgba(28, 25, 23, 0.92);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-hover: rgba(255, 255, 255, 0.04);
+            --glass-elevated: rgba(38, 35, 33, 0.95);
+
+            /* Accent - Warm Coral */
+            --accent: #E07A5F;
+            --accent-soft: rgba(224, 122, 95, 0.15);
+            --accent-glow: rgba(224, 122, 95, 0.3);
+
+            /* Secondary - Sage Green */
+            --sage: #81B29A;
+            --sage-soft: rgba(129, 178, 154, 0.15);
+
+            /* Semantic */
+            --success: #81B29A;
+            --warning: #F2CC8F;
+            --error: #E07A5F;
+
+            /* Text - Warm neutrals */
+            --text-bright: #FEFDFB;
+            --text-primary: #E8E4DF;
+            --text-secondary: #A39E97;
+            --text-muted: #6B6660;
+
+            /* Shadows - Soft, floating */
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.12);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.16), 0 2px 8px rgba(0, 0, 0, 0.08);
+            --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.2), 0 4px 16px rgba(0, 0, 0, 0.1);
+            --shadow-glow: 0 0 40px rgba(224, 122, 95, 0.15);
+
+            /* Radii */
+            --r-sm: 8px;
+            --r-md: 12px;
+            --r-lg: 16px;
+            --r-xl: 20px;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -12,25 +64,35 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #1a1a2e;
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--canvas);
             overflow: hidden;
-            color: #fff;
+            color: var(--text-primary);
+            font-size: 13px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
         }
 
-        /* 메인 캔버스 */
+        /* ═══════════════════════════════════════════════════════════════
+           CANVAS - The infinite workspace
+        ═══════════════════════════════════════════════════════════════ */
+
         #canvas-container {
             position: relative;
             width: 100vw;
             height: 100vh;
-            z-index: 1;
+            background:
+                radial-gradient(circle at 50% 0%, rgba(224, 122, 95, 0.03) 0%, transparent 50%),
+                linear-gradient(90deg, var(--canvas-grid) 1px, transparent 1px) 0 0 / 24px 24px,
+                linear-gradient(var(--canvas-grid) 1px, transparent 1px) 0 0 / 24px 24px,
+                var(--canvas);
         }
 
         #main-canvas {
             position: absolute;
             top: 0;
             left: 0;
-            background: #ffffff;
+            background: transparent;
             z-index: 1;
         }
 
@@ -39,6 +101,7 @@
             top: 0;
             left: 0;
             pointer-events: none;
+            z-index: 2;
         }
 
         #cursor-layer {
@@ -46,169 +109,267 @@
             top: 0;
             left: 0;
             pointer-events: none;
+            z-index: 100;
         }
 
-        /* 커서 스타일 */
+        /* ═══════════════════════════════════════════════════════════════
+           REMOTE CURSORS - Collaborative presence
+        ═══════════════════════════════════════════════════════════════ */
+
         .remote-cursor {
             position: absolute;
             pointer-events: none;
-            transition: left 0.05s linear, top 0.05s linear;
-            z-index: 100;
+            transition: left 0.1s cubic-bezier(0.22, 1, 0.36, 1),
+                        top 0.1s cubic-bezier(0.22, 1, 0.36, 1);
         }
 
         .cursor-pointer {
             width: 0;
             height: 0;
-            border-left: 8px solid transparent;
-            border-right: 8px solid transparent;
-            border-bottom: 16px solid var(--cursor-color, #00ff88);
+            border-left: 7px solid transparent;
+            border-right: 7px solid transparent;
+            border-bottom: 16px solid var(--cursor-color, var(--accent));
             transform: rotate(-45deg);
-            filter: drop-shadow(0 0 4px var(--cursor-color, #00ff88));
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
         }
 
         .cursor-label {
             position: absolute;
             left: 16px;
             top: 10px;
-            background: var(--cursor-color, #00ff88);
-            color: #000;
-            padding: 2px 8px;
-            border-radius: 4px;
+            background: var(--cursor-color, var(--accent));
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 6px;
             font-size: 11px;
-            font-weight: bold;
+            font-weight: 600;
             white-space: nowrap;
+            box-shadow: var(--shadow-sm);
+            letter-spacing: 0.2px;
         }
 
-        /* 상단 툴바 */
+        /* ═══════════════════════════════════════════════════════════════
+           TOOLBAR - Floating command center
+        ═══════════════════════════════════════════════════════════════ */
+
         #toolbar {
             position: fixed;
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.9);
-            backdrop-filter: blur(10px);
-            padding: 12px 20px;
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--glass);
+            backdrop-filter: blur(20px) saturate(1.2);
+            -webkit-backdrop-filter: blur(20px) saturate(1.2);
+            padding: 6px 8px;
+            border-radius: var(--r-xl);
+            border: 1px solid var(--glass-border);
             display: flex;
-            gap: 12px;
+            gap: 4px;
             align-items: center;
             z-index: 1000;
+            box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,0.05);
+            animation: toolbar-appear 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        @keyframes toolbar-appear {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
         }
 
         .tool-group {
             display: flex;
-            gap: 6px;
-            padding-right: 12px;
-            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            gap: 2px;
+            padding: 0 6px;
+            position: relative;
         }
 
-        .tool-group:last-child {
-            border-right: none;
-            padding-right: 0;
+        .tool-group::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 1px;
+            height: 24px;
+            background: var(--glass-border);
+        }
+
+        .tool-group:last-child::after {
+            display: none;
         }
 
         .tool-btn {
             width: 40px;
             height: 40px;
             border: none;
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-            font-size: 18px;
+            border-radius: var(--r-md);
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 17px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
             display: flex;
             align-items: center;
             justify-content: center;
+            position: relative;
         }
 
         .tool-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: scale(1.05);
+            background: var(--glass-hover);
+            color: var(--text-bright);
+            transform: translateY(-1px);
         }
 
         .tool-btn.active {
-            background: linear-gradient(135deg, #00ff88, #00cc6a);
-            color: #000;
-            box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 4px 12px var(--accent-glow);
         }
 
-        /* 색상 팔레트 */
+        .tool-btn.active:hover {
+            transform: translateY(-1px);
+        }
+
+        .tool-btn svg {
+            width: 20px;
+            height: 20px;
+            stroke-width: 1.75;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           COLOR PALETTE - Chromatic selection
+        ═══════════════════════════════════════════════════════════════ */
+
         #color-palette {
             display: flex;
-            gap: 3px;
-            flex-wrap: nowrap;
+            gap: 4px;
+            padding: 0 6px;
         }
 
         .color-btn {
-            width: 18px;
-            height: 18px;
+            width: 22px;
+            height: 22px;
             border: 2px solid transparent;
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer;
-            transition: all 0.2s;
-            flex-shrink: 0;
+            transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+            position: relative;
         }
 
         .color-btn:hover {
-            transform: scale(1.15);
+            transform: scale(1.15) translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
 
         .color-btn.active {
-            border-color: #fff;
-            box-shadow: 0 0 8px currentColor;
+            border-color: var(--text-bright);
+            transform: scale(1.1);
+            box-shadow: 0 0 0 3px var(--glass), 0 4px 12px rgba(0,0,0,0.2);
         }
 
-        /* 브러시 크기 */
+        /* ═══════════════════════════════════════════════════════════════
+           BRUSH CONTROLS
+        ═══════════════════════════════════════════════════════════════ */
+
         #brush-size {
             width: 80px;
-            accent-color: #00ff88;
+            height: 4px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            cursor: pointer;
+        }
+
+        #brush-size::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px var(--accent-glow);
+        }
+
+        #brush-size::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 4px 16px var(--accent-glow);
         }
 
         #brush-preview {
-            width: 30px;
-            height: 30px;
+            width: 32px;
+            height: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
         #brush-dot {
-            background: #fff;
+            background: var(--text-secondary);
             border-radius: 50%;
+            transition: all 0.15s;
         }
 
-        /* 좌측 패널 */
-        /* 드래그 가능한 패널 공통 스타일 */
+        /* ═══════════════════════════════════════════════════════════════
+           PANELS - Floating glass cards
+        ═══════════════════════════════════════════════════════════════ */
+
         .draggable-panel {
             position: fixed;
-            background: rgba(0, 0, 0, 0.9);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--glass);
+            backdrop-filter: blur(20px) saturate(1.2);
+            -webkit-backdrop-filter: blur(20px) saturate(1.2);
+            border-radius: var(--r-lg);
+            border: 1px solid var(--glass-border);
             z-index: 1000;
-            min-width: 180px;
+            min-width: 220px;
+            box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,0.05);
+            animation: panel-appear 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+        }
+
+        #left-panel { animation-delay: 0.1s; }
+        #right-panel { animation-delay: 0.2s; }
+        #layer-panel { animation-delay: 0.3s; }
+
+        @keyframes panel-appear {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .panel-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 16px;
+            padding: 14px 16px;
             cursor: move;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid var(--glass-border);
             user-select: none;
         }
 
         .panel-header h1, .panel-header h2, .panel-header h3 {
             margin: 0;
-            font-size: 14px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--text-muted);
         }
 
         .panel-content {
-            padding: 12px 16px;
-            transition: all 0.2s ease;
+            padding: 14px 16px;
         }
 
         .panel-content.collapsed {
@@ -216,151 +377,164 @@
         }
 
         .collapse-btn {
-            background: rgba(255, 255, 255, 0.1);
+            background: transparent;
             border: none;
-            color: #888;
+            color: var(--text-muted);
             width: 24px;
             height: 24px;
-            border-radius: 6px;
+            border-radius: var(--r-sm);
             cursor: pointer;
             font-size: 16px;
-            line-height: 1;
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: all 0.2s;
         }
 
         .collapse-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            color: #fff;
+            background: var(--glass-hover);
+            color: var(--text-bright);
         }
 
+        /* Left Panel - Board Info */
         #left-panel {
             top: 20px;
             left: 20px;
+            min-width: 240px;
         }
 
         #left-panel h1 {
-            font-size: 16px;
-            margin: 0;
-            background: linear-gradient(135deg, #00ff88, #00ccff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-bright);
+            letter-spacing: -0.3px;
+            text-transform: none;
         }
 
         .subtitle {
             font-size: 11px;
-            color: #666;
-            margin-bottom: 12px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+            font-weight: 500;
         }
 
         .status-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 8px;
-            font-size: 13px;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .status-row:last-child {
+            border-bottom: none;
         }
 
         .status-label {
-            color: #888;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 500;
         }
 
         .status-value {
-            color: #fff;
-            font-family: 'Courier New', monospace;
+            color: var(--text-primary);
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            font-weight: 400;
         }
 
         .status-value.connected {
-            color: #00ff88;
+            color: var(--success);
         }
 
-        /* 우측 패널 - 유저 리스트 */
+        /* Right Panel - Users */
         #right-panel {
             top: 20px;
             right: 20px;
-            max-height: 250px;
         }
 
         #right-panel .panel-content {
-            max-height: 150px;
+            max-height: 180px;
             overflow-y: auto;
-        }
-
-        #right-panel h2 {
-            font-size: 13px;
-            color: #888;
         }
 
         .user-item {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 6px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            gap: 12px;
+            padding: 10px 12px;
+            margin: 4px 0;
+            border-radius: var(--r-md);
+            transition: all 0.2s;
+        }
+
+        .user-item:hover {
+            background: var(--glass-hover);
         }
 
         .user-dot {
             width: 10px;
             height: 10px;
             border-radius: 50%;
+            flex-shrink: 0;
+            box-shadow: 0 0 8px currentColor;
         }
 
         .user-name {
-            font-size: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
         }
 
-        /* 레이어 패널 */
+        /* Layer Panel */
         #layer-panel {
             right: 20px;
-            top: 280px;
-            max-height: 350px;
+            top: 260px;
+            width: 240px;
         }
 
         #layer-panel .panel-content {
-            padding: 8px 12px;
-            max-height: 250px;
+            padding: 10px;
+            max-height: 300px;
             overflow-y: auto;
         }
 
-        #layer-panel h3 {
-            color: #888;
-            font-size: 13px;
-            margin: 0;
-        }
-
         .layer-list {
-            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
 
         .layer-item {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 10px;
-            margin-bottom: 4px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 6px;
+            gap: 12px;
+            padding: 10px 12px;
+            background: transparent;
+            border-radius: var(--r-md);
             cursor: pointer;
-            transition: background 0.2s;
-            font-size: 12px;
+            transition: all 0.2s;
+            font-size: 13px;
+            border: 1px solid transparent;
         }
 
         .layer-item:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: var(--glass-hover);
         }
 
         .layer-item.selected {
-            background: rgba(0, 102, 255, 0.3);
-            border: 1px solid #0066ff;
+            background: var(--accent-soft);
+            border-color: var(--accent);
         }
 
         .layer-item.locked {
-            opacity: 0.5;
+            opacity: 0.4;
         }
 
         .layer-icon {
-            font-size: 14px;
+            font-size: 15px;
+            width: 22px;
+            text-align: center;
         }
 
         .layer-name {
@@ -368,74 +542,169 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            font-weight: 500;
         }
 
         .layer-actions {
             display: flex;
-            gap: 4px;
-            padding: 8px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            gap: 6px;
+            padding: 10px;
+            border-top: 1px solid var(--glass-border);
         }
 
         .layer-btn {
             flex: 1;
-            padding: 8px;
-            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 10px;
+            background: rgba(255,255,255,0.05);
             border: none;
-            border-radius: 6px;
+            border-radius: var(--r-sm);
             cursor: pointer;
-            font-size: 14px;
-            transition: background 0.2s;
+            font-size: 13px;
+            color: var(--text-secondary);
+            transition: all 0.2s;
         }
 
         .layer-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
+            background: var(--glass-hover);
+            color: var(--text-bright);
+            transform: translateY(-1px);
         }
 
-        /* 하단 연결 버튼 */
+        /* ═══════════════════════════════════════════════════════════════
+           CONNECT AREA - Bottom controls
+        ═══════════════════════════════════════════════════════════════ */
+
         #connect-area {
             position: fixed;
-            bottom: 30px;
+            bottom: 24px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
             gap: 12px;
             z-index: 1000;
+            animation: connect-appear 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.4s backwards;
         }
 
-        .btn {
-            background: linear-gradient(135deg, #00ff88, #00cc6a);
-            color: #000;
-            border: none;
-            padding: 12px 28px;
-            font-size: 14px;
-            font-weight: bold;
-            border-radius: 25px;
+        @keyframes connect-appear {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        #account-select {
+            padding: 12px 18px;
+            border-radius: var(--r-lg);
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            color: var(--text-primary);
+            border: 1px solid var(--glass-border);
+            font-size: 12px;
+            font-family: 'Space Mono', monospace;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.2s;
+            box-shadow: var(--shadow-md);
+        }
+
+        #account-select:hover {
+            border-color: rgba(255,255,255,0.15);
+            transform: translateY(-1px);
+        }
+
+        #account-select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: var(--shadow-md), 0 0 0 3px var(--accent-soft);
+        }
+
+        .pk-input {
+            padding: 12px 18px;
+            border-radius: var(--r-lg);
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            color: var(--text-primary);
+            border: 1px solid var(--glass-border);
+            font-size: 12px;
+            font-family: 'Space Mono', monospace;
+            width: 300px;
+            display: none;
+            box-shadow: var(--shadow-md);
+            transition: all 0.2s;
+        }
+
+        .pk-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: var(--shadow-md), 0 0 0 3px var(--accent-soft);
+        }
+
+        .pk-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           BUTTONS - Refined interactions
+        ═══════════════════════════════════════════════════════════════ */
+
+        .btn {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: 'DM Sans', sans-serif;
+            border-radius: var(--r-lg);
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            box-shadow: var(--shadow-md), 0 4px 16px var(--accent-glow);
+            letter-spacing: 0.2px;
         }
 
         .btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 25px rgba(0, 255, 136, 0.4);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg), 0 8px 24px var(--accent-glow);
+        }
+
+        .btn:active {
+            transform: translateY(0);
         }
 
         .btn:disabled {
-            background: #333;
-            color: #666;
+            background: rgba(255,255,255,0.08);
+            color: var(--text-muted);
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
         }
 
         .btn.secondary {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            color: var(--text-primary);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow-md);
         }
 
-        /* 모달 */
+        .btn.secondary:hover {
+            background: var(--glass-elevated);
+            border-color: rgba(255,255,255,0.12);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           MODALS - Centered dialogs
+        ═══════════════════════════════════════════════════════════════ */
+
         .modal {
             display: none;
             position: fixed;
@@ -443,7 +712,9 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             z-index: 2000;
             justify-content: center;
             align-items: center;
@@ -454,78 +725,263 @@
         }
 
         .modal-content {
-            background: #1a1a2e;
-            padding: 30px;
-            border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.1);
-            max-width: 450px;
+            background: var(--glass-elevated);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            padding: 32px;
+            border-radius: var(--r-xl);
+            border: 1px solid var(--glass-border);
+            max-width: 460px;
             width: 90%;
+            box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,0.05);
+            animation: modal-appear 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        @keyframes modal-appear {
+            from {
+                opacity: 0;
+                transform: scale(0.95) translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
         }
 
         .modal h2 {
-            margin-bottom: 16px;
-            color: #00ff88;
+            margin-bottom: 24px;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-bright);
+            letter-spacing: -0.3px;
         }
 
         .modal p {
-            color: #aaa;
-            margin-bottom: 12px;
-            line-height: 1.5;
-        }
-
-        .modal input {
-            width: 100%;
-            padding: 12px 16px;
-            border-radius: 10px;
-            border: 1px solid rgba(255,255,255,0.2);
-            background: rgba(255,255,255,0.05);
-            color: #fff;
-            font-size: 14px;
+            color: var(--text-secondary);
             margin-bottom: 16px;
         }
 
-        .modal input:focus {
+        .modal input, .modal select {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: var(--r-md);
+            border: 1px solid var(--glass-border);
+            background: rgba(0,0,0,0.2);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            margin-bottom: 14px;
+            transition: all 0.2s;
+        }
+
+        .modal input:focus, .modal select:focus {
             outline: none;
-            border-color: #00ff88;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+
+        .modal input::placeholder {
+            color: var(--text-muted);
         }
 
         .modal .btn-group {
             display: flex;
             gap: 10px;
             justify-content: flex-end;
+            margin-top: 10px;
         }
 
-        /* 로그 */
+        .modal-wide {
+            min-width: 480px;
+        }
+
+        .board-list {
+            max-height: 220px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        .board-list-loading {
+            color: var(--text-muted);
+            padding: 32px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .board-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            margin-bottom: 8px;
+            background: rgba(255,255,255,0.03);
+            border-radius: var(--r-md);
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .board-item:hover {
+            background: rgba(255,255,255,0.06);
+            border-color: var(--glass-border);
+            transform: translateX(4px);
+        }
+
+        .board-item-name {
+            font-weight: 600;
+            color: var(--text-bright);
+            font-size: 14px;
+        }
+
+        .board-item-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .modal-section {
+            border-top: 1px solid var(--glass-border);
+            padding-top: 20px;
+            margin-top: 16px;
+        }
+
+        .modal-section-title {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .create-board-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .create-board-row input {
+            flex: 1;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 8px 0;
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        .modal details {
+            margin-top: 20px;
+        }
+
+        .modal details summary {
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .modal details summary:hover {
+            color: var(--text-secondary);
+        }
+
+        .modal details[open] summary {
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+        }
+
+        .modal-footer {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid var(--glass-border);
+            text-align: center;
+        }
+
+        .btn-small {
+            font-size: 12px;
+            padding: 8px 14px;
+        }
+
+        .board-badge {
+            font-size: 10px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            white-space: nowrap;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .badge-success {
+            color: var(--success);
+            background: var(--sage-soft);
+        }
+
+        .badge-warning {
+            color: #C9A227;
+            background: rgba(242, 204, 143, 0.15);
+        }
+
+        .board-list-error {
+            color: var(--error);
+            padding: 32px;
+            text-align: center;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           EVENT LOG - Developer console
+        ═══════════════════════════════════════════════════════════════ */
+
         #event-log {
             position: fixed;
             bottom: 20px;
             left: 20px;
-            background: rgba(0, 0, 0, 0.9);
-            backdrop-filter: blur(10px);
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 12px 14px;
+            border-radius: var(--r-md);
+            border: 1px solid var(--glass-border);
             width: 280px;
-            max-height: 150px;
+            max-height: 140px;
             overflow-y: auto;
-            font-family: 'Courier New', monospace;
+            font-family: 'Space Mono', monospace;
             font-size: 10px;
             z-index: 1000;
+            box-shadow: var(--shadow-md);
+            animation: panel-appear 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.5s backwards;
         }
 
         .log-entry {
-            color: #666;
-            margin-bottom: 3px;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+            line-height: 1.5;
+            padding: 2px 0;
         }
 
-        .log-entry.tx { color: #00ff88; }
-        .log-entry.event { color: #00ccff; }
-        .log-entry.error { color: #ff6b6b; }
+        .log-entry.tx { color: var(--success); }
+        .log-entry.event { color: var(--accent); }
+        .log-entry.error { color: var(--error); }
 
-        /* 스피너 */
+        /* ═══════════════════════════════════════════════════════════════
+           SPINNER
+        ═══════════════════════════════════════════════════════════════ */
+
         .spinner {
-            width: 14px;
-            height: 14px;
+            width: 16px;
+            height: 16px;
             border: 2px solid transparent;
             border-top-color: currentColor;
             border-radius: 50%;
@@ -536,7 +992,10 @@
             to { transform: rotate(360deg); }
         }
 
-        /* 텍스트 입력 오버레이 */
+        /* ═══════════════════════════════════════════════════════════════
+           TEXT INPUT OVERLAY
+        ═══════════════════════════════════════════════════════════════ */
+
         #text-input-overlay {
             display: none;
             position: fixed;
@@ -548,16 +1007,25 @@
         }
 
         #text-input-overlay input {
-            padding: 8px 12px;
-            font-size: 16px;
-            border: 2px solid #00ff88;
-            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 15px;
+            font-family: 'DM Sans', sans-serif;
+            border: 2px solid var(--accent);
+            border-radius: var(--r-md);
             background: #fff;
-            color: #000;
-            min-width: 150px;
+            color: #1a1a1a;
+            min-width: 200px;
+            box-shadow: var(--shadow-lg), 0 0 0 4px var(--accent-soft);
         }
 
-        /* 스티키 노트 편집기 */
+        #text-input-overlay input:focus {
+            outline: none;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           STICKY NOTE EDITOR
+        ═══════════════════════════════════════════════════════════════ */
+
         .sticky-editor {
             position: fixed;
             z-index: 2000;
@@ -566,38 +1034,114 @@
         .sticky-editor-container {
             display: flex;
             flex-direction: column;
-            box-shadow: 3px 3px 10px rgba(0,0,0,0.3);
-            border-radius: 4px;
+            box-shadow: var(--shadow-lg);
+            border-radius: var(--r-md);
+            overflow: hidden;
+            border: 1px solid rgba(0,0,0,0.1);
         }
 
         .sticky-color-picker {
             display: flex;
-            gap: 4px;
-            padding: 8px;
-            border-bottom: 1px solid rgba(0,0,0,0.1);
+            gap: 8px;
+            padding: 12px;
+            background: rgba(0,0,0,0.05);
         }
 
         .sticky-color-opt {
-            width: 20px;
-            height: 20px;
+            width: 24px;
+            height: 24px;
             border: 2px solid transparent;
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .sticky-color-opt:hover {
+            transform: scale(1.1);
         }
 
         .sticky-color-opt.active {
-            border-color: #333;
+            border-color: rgba(0,0,0,0.3);
+            box-shadow: 0 0 0 2px #fff, 0 2px 8px rgba(0,0,0,0.15);
         }
 
         .sticky-textarea {
             flex: 1;
             border: none;
             background: transparent;
-            padding: 10px;
-            font-size: 14px;
+            padding: 14px;
+            font-size: 15px;
             resize: none;
             outline: none;
-            font-family: sans-serif;
+            font-family: 'DM Sans', sans-serif;
+            line-height: 1.5;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           NICKNAME MODAL
+        ═══════════════════════════════════════════════════════════════ */
+
+        .nickname-preview {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 20px;
+            background: rgba(0,0,0,0.15);
+            border-radius: var(--r-md);
+            margin-top: 16px;
+        }
+
+        .preview-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .preview-cursor {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .preview-cursor-icon {
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 14px solid var(--accent);
+            transform: rotate(-45deg);
+        }
+
+        .preview-cursor-name {
+            background: var(--accent);
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           CUSTOM SCROLLBARS
+        ═══════════════════════════════════════════════════════════════ */
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.15);
         }
     </style>
 </head>
@@ -701,7 +1245,7 @@
 
     <!-- 연결 버튼 -->
     <div id="connect-area">
-        <select id="account-select" style="padding:12px 16px;border-radius:25px;background:#333;color:#fff;border:1px solid #555;font-size:12px;">
+        <select id="account-select">
             <option value="0">Anvil #0 (0xf39F...2266)</option>
             <option value="1">Anvil #1 (0x7099...79C8)</option>
             <option value="2">Anvil #2 (0x3C44...93fC)</option>
@@ -709,8 +1253,7 @@
             <option value="4">Anvil #4 (0x15d3...2b28)</option>
             <option value="custom">Custom Key...</option>
         </select>
-        <input type="text" id="pk-input" placeholder="Enter Private Key (0x...)"
-               style="padding:12px 16px;border-radius:25px;background:#333;color:#fff;border:1px solid #555;font-size:12px;width:250px;display:none;">
+        <input type="text" id="pk-input" placeholder="Enter Private Key (0x...)" class="pk-input">
         <button class="btn" id="connect-btn">Connect</button>
         <button class="btn secondary" id="disconnect-btn" style="display:none;">Disconnect</button>
         <button class="btn secondary" id="deploy-btn" disabled>Setup Contract</button>
@@ -719,35 +1262,60 @@
 
     <!-- 보드 선택 모달 -->
     <div class="modal" id="contract-modal">
-        <div class="modal-content" style="min-width:400px;">
+        <div class="modal-content modal-wide">
             <h2>Select Whiteboard</h2>
 
             <!-- 보드 목록 -->
-            <div id="board-list" style="max-height:200px;overflow-y:auto;margin-bottom:16px;">
-                <div style="color:#888;padding:20px;text-align:center;">Loading boards...</div>
+            <div id="board-list" class="board-list">
+                <div class="board-list-loading">Loading boards...</div>
             </div>
 
             <!-- 새 보드 만들기 -->
-            <div style="border-top:1px solid #333;padding-top:16px;margin-top:8px;">
-                <p style="font-size:12px;color:#888;margin-bottom:8px;">Or create a new board:</p>
-                <div style="display:flex;gap:8px;margin-bottom:8px;">
-                    <input type="text" id="new-board-name" placeholder="Board name" style="flex:1;">
+            <div class="modal-section">
+                <p class="modal-section-title">Or create a new board:</p>
+                <div class="create-board-row">
+                    <input type="text" id="new-board-name" placeholder="Board name">
                     <button class="btn" id="create-board-btn">Create</button>
                 </div>
-                <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#aaa;cursor:pointer;">
-                    <input type="checkbox" id="allow-anyone-delete" style="width:16px;height:16px;">
-                    누구나 삭제 가능 (체크 해제시 본인만 삭제)
+                <label class="checkbox-label">
+                    <input type="checkbox" id="allow-anyone-delete">
+                    Allow anyone to delete (uncheck for owner-only)
                 </label>
             </div>
 
             <!-- 수동 입력 (접기) -->
-            <details style="margin-top:16px;">
-                <summary style="color:#666;cursor:pointer;font-size:11px;">Manual address entry</summary>
-                <div style="margin-top:8px;">
+            <details>
+                <summary>Manual address entry</summary>
+                <div>
                     <input type="text" id="contract-input" placeholder="0x... (contract address)">
                     <button class="btn secondary" id="use-existing-btn" style="margin-top:8px;width:100%;">Connect</button>
                 </div>
             </details>
+
+            <!-- Registry 변경 -->
+            <div class="modal-footer">
+                <button class="btn secondary btn-small" id="change-registry-btn">Change Registry Address</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 닉네임 입력 모달 -->
+    <div class="modal" id="nickname-modal">
+        <div class="modal-content" style="max-width: 380px;">
+            <h2>Enter Your Nickname</h2>
+            <p style="margin-bottom: 20px;">Choose a name that other collaborators will see.</p>
+            <input type="text" id="nickname-input" placeholder="Your nickname..." maxlength="20" autofocus>
+            <div class="nickname-preview">
+                <span class="preview-label">Preview:</span>
+                <div class="preview-cursor">
+                    <div class="preview-cursor-icon"></div>
+                    <span class="preview-cursor-name" id="nickname-preview-text">Designer</span>
+                </div>
+            </div>
+            <div class="btn-group" style="margin-top: 20px;">
+                <button class="btn secondary" id="nickname-cancel-btn">Cancel</button>
+                <button class="btn" id="nickname-confirm-btn">Join Board</button>
+            </div>
         </div>
     </div>
 
@@ -788,6 +1356,7 @@
             // User management
             "function join(string nickname) external",
             "function leave() external",
+            "function updateNickname(string newNickname) external",
             "function getActiveUsers() view returns (address[])",
             "function getUserInfo(address user) view returns (string nickname, bool isActive, uint256 objectCount)",
 
@@ -838,6 +1407,7 @@
             "event ObjectLockToggled(uint256 indexed objectId, bool isLocked)",
             "event UserJoined(address indexed user, string nickname)",
             "event UserLeft(address indexed user)",
+            "event NicknameUpdated(address indexed user, string newNickname)",
             "event CanvasCleared(address indexed user)",
             "event CursorMoved(address indexed user, int32 x, int32 y)"
         ];
@@ -969,6 +1539,7 @@
                 this.dragStart = null;
                 this.originalBounds = null;
                 this.originalObjectBounds = new Map();
+                this.originalObjectPoints = new Map(); // 스트로크용 원본 포인트
                 this.handleSize = 10;
             }
 
@@ -1063,11 +1634,26 @@
                 this.dragStart = { ...startPoint };
                 this.originalBounds = this.selectionBounds ? { ...this.selectionBounds } : null;
                 this.originalObjectBounds = new Map();
+                this.originalObjectPoints = new Map();
 
                 for (const id of this.selectedIds) {
                     const obj = this.objectManager.getObject(id);
-                    if (obj && obj.bounds) {
-                        this.originalObjectBounds.set(id, { ...obj.bounds });
+                    if (!obj) continue;
+
+                    // bounds가 없으면 계산
+                    if (!obj.bounds) {
+                        if (obj.type === 'stroke' && obj.points && obj.points.length >= 2) {
+                            obj.bounds = this.objectManager.calculateStrokeBounds(obj.points);
+                        } else {
+                            continue;
+                        }
+                    }
+
+                    this.originalObjectBounds.set(id, { ...obj.bounds });
+
+                    // 스트로크의 경우 원본 포인트도 저장
+                    if (obj.type === 'stroke' && obj.points) {
+                        this.originalObjectPoints.set(id, [...obj.points]);
                     }
                 }
             }
@@ -1080,17 +1666,53 @@
 
                 if (this.transformMode === 'move') {
                     for (const id of this.selectedIds) {
-                        const original = this.originalObjectBounds.get(id);
-                        if (original) {
-                            this.objectManager.updateObject(id, {
-                                bounds: {
-                                    x: original.x + dx,
-                                    y: original.y + dy,
-                                    width: original.width,
-                                    height: original.height
-                                }
-                            });
+                        let original = this.originalObjectBounds.get(id);
+                        const obj = this.objectManager.getObject(id);
+
+                        if (!obj) continue;
+
+                        // bounds가 없으면 설정
+                        if (!original) {
+                            if (obj.bounds) {
+                                original = { ...obj.bounds };
+                            } else if (obj.points && obj.points.length >= 2) {
+                                const calculatedBounds = this.objectManager.calculateStrokeBounds(obj.points);
+                                obj.bounds = calculatedBounds;
+                                original = { ...calculatedBounds };
+                            } else {
+                                continue;
+                            }
+                            this.originalObjectBounds.set(id, original);
+
+                            // 스트로크인데 원본 포인트가 없으면 저장
+                            if (obj.type === 'stroke' && obj.points && !this.originalObjectPoints.has(id)) {
+                                this.originalObjectPoints.set(id, [...obj.points]);
+                            }
                         }
+
+                        const updates = {
+                            bounds: {
+                                x: original.x + dx,
+                                y: original.y + dy,
+                                width: original.width,
+                                height: original.height
+                            }
+                        };
+
+                        // 스트로크의 경우 포인트도 변환
+                        if (obj.type === 'stroke') {
+                            const originalPoints = this.originalObjectPoints.get(id);
+                            if (originalPoints) {
+                                const newPoints = [];
+                                for (let i = 0; i < originalPoints.length; i += 2) {
+                                    newPoints.push(originalPoints[i] + dx);
+                                    newPoints.push(originalPoints[i + 1] + dy);
+                                }
+                                updates.points = newPoints;
+                            }
+                        }
+
+                        this.objectManager.updateObject(id, updates);
                     }
                 } else if (this.transformMode.startsWith('resize')) {
                     this._handleResize(dx, dy);
@@ -1128,14 +1750,34 @@
                         const relX = ob.width > 0 ? (original.x - ob.x) / ob.width : 0;
                         const relY = ob.height > 0 ? (original.y - ob.y) / ob.height : 0;
 
-                        this.objectManager.updateObject(id, {
+                        const obj = this.objectManager.getObject(id);
+                        const updates = {
                             bounds: {
                                 x: ob.x + offsetX + relX * ob.width * scaleX,
                                 y: ob.y + offsetY + relY * ob.height * scaleY,
                                 width: Math.max(10, original.width * scaleX),
                                 height: Math.max(10, original.height * scaleY)
                             }
-                        });
+                        };
+
+                        // 스트로크의 경우 포인트도 스케일 변환
+                        if (obj && obj.type === 'stroke') {
+                            const originalPoints = this.originalObjectPoints.get(id);
+                            if (originalPoints && original) {
+                                const newPoints = [];
+                                for (let i = 0; i < originalPoints.length; i += 2) {
+                                    // 원래 bounds 기준으로 상대 위치 계산
+                                    const relPx = original.width > 0 ? (originalPoints[i] - original.x) / original.width : 0;
+                                    const relPy = original.height > 0 ? (originalPoints[i + 1] - original.y) / original.height : 0;
+                                    // 새 bounds 크기에 맞게 변환
+                                    newPoints.push(updates.bounds.x + relPx * updates.bounds.width);
+                                    newPoints.push(updates.bounds.y + relPy * updates.bounds.height);
+                                }
+                                updates.points = newPoints;
+                            }
+                        }
+
+                        this.objectManager.updateObject(id, updates);
                     }
                 }
             }
@@ -1150,6 +1792,9 @@
                 this.dragStart = null;
                 this.originalBounds = null;
                 this.originalObjectBounds.clear();
+                if (this.originalObjectPoints) {
+                    this.originalObjectPoints.clear();
+                }
 
                 return result;
             }
@@ -1402,6 +2047,7 @@
         let contractAddress = null;
         let myAddress = null;
         let isJoined = false;
+        let userNickname = null;
 
         let sessionWallet = null;
         let sessionContract = null;
@@ -1421,6 +2067,7 @@
 
         const cursors = new Map();
         let stats = { txSent: 0, objects: 0 };
+        let pollingIntervalId = null;
 
         // 편집 중인 스티키 노트
         let editingStickyId = null;
@@ -1516,7 +2163,39 @@
             document.getElementById('deploy-btn').addEventListener('click', openBoardModal);
             document.getElementById('use-existing-btn').addEventListener('click', useExistingContract);
             document.getElementById('create-board-btn').addEventListener('click', createBoard);
-            document.getElementById('join-btn').addEventListener('click', joinSession);
+            document.getElementById('change-registry-btn').addEventListener('click', () => {
+                localStorage.removeItem('boardRegistryAddress');
+                registryAddress = '';
+                registryContract = null;
+                loadBoardList();
+            });
+            document.getElementById('join-btn').addEventListener('click', function() {
+                // 닉네임 모달 표시 (보드 선택 없이 Join 버튼 직접 클릭한 경우)
+                showNicknameModal();
+            });
+
+            // 닉네임 모달 이벤트
+            document.getElementById('nickname-input').addEventListener('input', function() {
+                const value = this.value.trim() || 'Designer';
+                document.getElementById('nickname-preview-text').textContent = value;
+            });
+            document.getElementById('nickname-input').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    document.getElementById('nickname-confirm-btn').click();
+                }
+            });
+            document.getElementById('nickname-cancel-btn').addEventListener('click', function() {
+                hideNicknameModal();
+                document.getElementById('join-btn').disabled = false;
+            });
+            document.getElementById('nickname-confirm-btn').addEventListener('click', function() {
+                const input = document.getElementById('nickname-input');
+                userNickname = input.value.trim() || `Designer_${myAddress.slice(-4)}`;
+                localStorage.setItem('userNickname', userNickname);
+                hideNicknameModal();
+                document.getElementById('join-btn').disabled = false;
+                joinSession();
+            });
 
             log('Collaboration Board loaded. Connect wallet to start!');
             render();
@@ -1637,10 +2316,12 @@
 
         function getObjectName(obj) {
             const prefix = obj.type.charAt(0).toUpperCase() + obj.type.slice(1);
+            const isOwner = obj.creator?.toLowerCase() === myAddress?.toLowerCase();
+            const ownerMark = isOwner ? '' : ' 🔒';
             if (obj.content) {
-                return `${prefix}: ${obj.content.slice(0, 12)}...`;
+                return `${prefix}: ${obj.content.slice(0, 10)}${ownerMark}`;
             }
-            return `${prefix} #${obj.id}`;
+            return `${prefix} #${obj.id}${ownerMark}`;
         }
 
         function setupDraggablePanels() {
@@ -1785,14 +2466,35 @@
             const handle = selectionSystem.getHandleAtPoint(x, y);
 
             if (handle) {
-                selectionSystem.startTransform('resize-' + handle, { x, y });
+                // 리사이즈 전에 소유권 확인
+                const selectedObjs = selectionSystem.getSelectedObjects();
+                const canTransform = selectedObjs.every(obj =>
+                    obj.creator?.toLowerCase() === myAddress?.toLowerCase()
+                );
+                if (canTransform) {
+                    selectionSystem.startTransform('resize-' + handle, { x, y });
+                } else {
+                    log('본인이 만든 객체만 수정할 수 있습니다', 'error');
+                }
             } else if (selectionSystem.isPointInSelection(x, y)) {
-                selectionSystem.startTransform('move', { x, y });
+                // 이동 전에 소유권 확인
+                const selectedObjs = selectionSystem.getSelectedObjects();
+                const canTransform = selectedObjs.every(obj =>
+                    obj.creator?.toLowerCase() === myAddress?.toLowerCase()
+                );
+                if (canTransform) {
+                    selectionSystem.startTransform('move', { x, y });
+                } else {
+                    log('본인이 만든 객체만 이동할 수 있습니다', 'error');
+                }
             } else {
                 const obj = objectManager.getObjectAtPoint(x, y);
                 if (obj) {
                     selectionSystem.selectObject(obj.id, e.shiftKey);
-                    selectionSystem.startTransform('move', { x, y });
+                    // 본인 객체인 경우에만 바로 이동 시작
+                    if (obj.creator?.toLowerCase() === myAddress?.toLowerCase()) {
+                        selectionSystem.startTransform('move', { x, y });
+                    }
                 } else {
                     selectionSystem.deselectAll();
                 }
@@ -1807,7 +2509,12 @@
                 // 온체인에 변환 전송
                 for (const obj of result.objects) {
                     if (obj.bounds && obj.id >= 0) {
-                        sendMoveObject(obj.id, obj.bounds.x, obj.bounds.y);
+                        if (result.mode === 'move') {
+                            sendMoveObject(obj.id, obj.bounds.x, obj.bounds.y);
+                        } else if (result.mode.startsWith('resize')) {
+                            sendMoveObject(obj.id, obj.bounds.x, obj.bounds.y);
+                            sendResizeObject(obj.id, obj.bounds.width, obj.bounds.height);
+                        }
                     }
                 }
             }
@@ -1955,11 +2662,7 @@
                 // 이미 이번 드래그에서 지운 오브젝트는 스킵
                 if (erasedObjects.has(obj.id)) continue;
 
-                // 내가 만든 오브젝트만 지울 수 있음 (creator가 없으면 내꺼로 간주)
-                const objCreator = obj.creator?.toLowerCase();
-                if (objCreator && objCreator !== myAddr) continue;
-
-                // 충돌 검사
+                // 충돌 검사 (삭제 권한은 컨트랙트에서 체크)
                 const isNear = isPointNearObject(x, y, obj, ERASER_RADIUS);
                 if (isNear) {
                     erasedObjects.add(obj.id);
@@ -2148,16 +2851,12 @@
                 strokeWidth: 0,
                 layer: objectManager.objects.size + 1,
                 bounds: { x, y, width: 200, height: 150 },
-                content: ''
+                content: '',
+                isNew: true  // 아직 온체인에 생성 안됨
             };
 
             objectManager.addObject(obj);
             stats.objects++;
-
-            if (sessionContract) {
-                sendCreateStickyNote(obj.bounds.x, obj.bounds.y, obj.bounds.width, obj.bounds.height, '', 0, obj.id);
-            }
-
             render();
             showStickyEditor(obj);
         }
@@ -2190,39 +2889,80 @@
             document.body.appendChild(overlay);
 
             const textarea = overlay.querySelector('.sticky-textarea');
+            let isClosing = false;
+            let currentBgIdx = obj.bgColorIndex || 0;
+
             textarea.focus();
 
-            // 색상 선택
+            // 색상 선택 (mousedown으로 blur 방지)
             overlay.querySelectorAll('.sticky-color-opt').forEach(btn => {
-                btn.onclick = () => {
+                btn.addEventListener('mousedown', (e) => {
+                    e.preventDefault(); // blur 방지
                     const idx = parseInt(btn.dataset.index);
                     overlay.querySelector('.sticky-editor-container').style.background = CONFIG.stickyColors[idx];
                     overlay.querySelectorAll('.sticky-color-opt').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
+                    currentBgIdx = idx;
                     obj.bgColorIndex = idx;
-                };
+                });
             });
 
-            // 저장 (blur 시)
+            // 에디터 닫기 함수
+            function closeEditor() {
+                if (isClosing) return;
+                isClosing = true;
+
+                const content = textarea.value;
+                const localObj = objectManager.getObject(obj.id);
+
+                // 로컬 객체 업데이트
+                if (localObj) {
+                    localObj.content = content;
+                    localObj.bgColorIndex = currentBgIdx;
+                }
+                obj.content = content;
+                obj.bgColorIndex = currentBgIdx;
+
+                if (sessionContract) {
+                    const realObj = localObj || obj;
+                    const currentId = realObj.id;
+
+                    if (obj.isNew || realObj.isNew) {
+                        // 새 스티키 - 내용과 함께 생성
+                        sendCreateStickyNote(obj.bounds.x, obj.bounds.y, obj.bounds.width, obj.bounds.height, content, currentBgIdx, obj.id);
+                        obj.isNew = false;
+                        if (localObj) localObj.isNew = false;
+                    } else if (currentId >= 0) {
+                        // 기존 스티키 업데이트
+                        sendUpdateStickyNote(currentId, content);
+                    }
+                }
+
+                overlay.remove();
+                editingStickyId = null;
+                render();
+            }
+
+            // 오버레이 외부 클릭 시 닫기
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    closeEditor();
+                }
+            });
+
+            // blur 시 닫기 (색상 버튼 클릭이 아닐 때만)
             textarea.addEventListener('blur', () => {
                 setTimeout(() => {
-                    const content = textarea.value;
-                    objectManager.updateObject(obj.id, { content });
-
-                    if (sessionContract && obj.id >= 0) {
-                        sendUpdateStickyNote(obj.id, content);
+                    if (!isClosing && !document.activeElement?.closest('.sticky-editor')) {
+                        closeEditor();
                     }
-
-                    overlay.remove();
-                    editingStickyId = null;
-                    render();
-                }, 100);
+                }, 150);
             });
 
             // ESC로 닫기
             textarea.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
-                    textarea.blur();
+                    closeEditor();
                 }
             });
         }
@@ -2514,6 +3254,17 @@
             }
         }
 
+        async function sendResizeObject(objectId, newWidth, newHeight) {
+            if (!sessionContract) return;
+
+            try {
+                await sessionContract.resizeObject(objectId, Math.round(newWidth), Math.round(newHeight), { gasLimit: 150000 });
+                stats.txSent++;
+            } catch (error) {
+                log(`Resize error: ${error.message}`, 'error');
+            }
+        }
+
         async function sendDeleteObject(objectId) {
             if (!sessionContract) return;
 
@@ -2530,7 +3281,8 @@
             if (!sessionContract) return;
 
             try {
-                await sessionContract.updateStickyNote(objectId, content, { gasLimit: 200000 });
+                const tx = await sessionContract.updateStickyNote(objectId, content, { gasLimit: 200000 });
+                await tx.wait();
                 stats.txSent++;
             } catch (error) {
                 log(`Update error: ${error.message}`, 'error');
@@ -2703,15 +3455,15 @@
 
         async function loadBoardList() {
             const boardListDiv = document.getElementById('board-list');
-            boardListDiv.innerHTML = '<div style="color:#888;padding:20px;text-align:center;">Loading boards...</div>';
+            boardListDiv.innerHTML = '<div class="board-list-loading">Loading boards...</div>';
 
             // Registry 주소 확인
             if (!registryAddress) {
                 boardListDiv.innerHTML = `
-                    <div style="color:#888;padding:20px;text-align:center;">
+                    <div class="board-list-loading">
                         <p>No BoardRegistry configured.</p>
-                        <p style="font-size:11px;margin-top:8px;">Enter registry address:</p>
-                        <input type="text" id="registry-input" placeholder="0x... (BoardRegistry address)" style="width:100%;margin-top:8px;">
+                        <p class="modal-section-title" style="margin-top:8px;">Enter registry address:</p>
+                        <input type="text" id="registry-input" placeholder="0x... (BoardRegistry address)">
                         <button class="btn secondary" id="set-registry-btn" style="margin-top:8px;width:100%;">Set Registry</button>
                     </div>`;
 
@@ -2732,43 +3484,45 @@
             try {
                 registryContract = new ethers.Contract(registryAddress, REGISTRY_ABI, signer);
                 const boards = await registryContract.getAllBoards();
+                console.log('Loaded boards:', boards);
+                boards.forEach((b, i) => console.log(`Board ${i}:`, b.boardAddress, b.name));
 
                 if (boards.length === 0) {
                     boardListDiv.innerHTML = `
-                        <div style="color:#888;padding:20px;text-align:center;">
+                        <div class="board-list-loading">
                             No boards yet. Create one below!
                         </div>`;
                 } else {
                     boardListDiv.innerHTML = boards.map((board, index) => {
                         const date = new Date(Number(board.createdAt) * 1000).toLocaleDateString();
                         const creatorShort = `${board.creator.slice(0, 6)}...${board.creator.slice(-4)}`;
-                        const deleteMode = board.allowAnyoneDelete ? '누구나 삭제' : '본인만 삭제';
-                        const deleteModeColor = board.allowAnyoneDelete ? '#ff9800' : '#4caf50';
+                        const deleteMode = board.allowAnyoneDelete ? 'Anyone can delete' : 'Owner only';
+                        const badgeClass = board.allowAnyoneDelete ? 'badge-warning' : 'badge-success';
                         return `
-                            <div class="board-item" data-address="${board.boardAddress}"
-                                 style="padding:12px;margin-bottom:8px;background:rgba(255,255,255,0.05);border-radius:8px;cursor:pointer;transition:background 0.2s;">
-                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                                    <span style="font-weight:bold;">${board.name || 'Untitled Board'}</span>
-                                    <span style="font-size:10px;color:${deleteModeColor};background:${deleteModeColor}22;padding:2px 6px;border-radius:4px;">${deleteMode}</span>
+                            <div class="board-item" data-address="${board.boardAddress}">
+                                <div>
+                                    <div class="board-item-name">${board.name || 'Untitled Board'}</div>
+                                    <div class="board-item-meta">By ${creatorShort} &bull; ${date}</div>
                                 </div>
-                                <div style="font-size:11px;color:#888;">
-                                    By ${creatorShort} • ${date}
-                                </div>
+                                <span class="board-badge ${badgeClass}">${deleteMode}</span>
                             </div>`;
                     }).join('');
 
                     // 보드 클릭 이벤트
                     boardListDiv.querySelectorAll('.board-item').forEach(item => {
-                        item.addEventListener('click', () => selectBoard(item.dataset.address));
-                        item.addEventListener('mouseenter', () => item.style.background = 'rgba(0,255,136,0.1)');
-                        item.addEventListener('mouseleave', () => item.style.background = 'rgba(255,255,255,0.05)');
+                        item.addEventListener('click', () => {
+                            const addr = item.dataset.address;
+                            log(`Selecting board: ${addr}`);
+                            console.log('Selecting board:', addr);
+                            selectBoard(addr);
+                        });
                     });
                 }
 
             } catch (error) {
                 log(`Failed to load boards: ${error.message}`, 'error');
                 boardListDiv.innerHTML = `
-                    <div style="color:#f66;padding:20px;text-align:center;">
+                    <div class="board-list-error">
                         Failed to load boards. Check registry address.
                         <button class="btn secondary" id="reset-registry-btn" style="margin-top:12px;width:100%;">Reset Registry</button>
                     </div>`;
@@ -2826,25 +3580,86 @@
             }
         }
 
+        function resetBoardState() {
+            try {
+                console.log('resetBoardState: stopping polling');
+                // 폴링 중단
+                if (pollingIntervalId) {
+                    clearInterval(pollingIntervalId);
+                    pollingIntervalId = null;
+                }
+
+                console.log('resetBoardState: reinitializing managers');
+                // 오브젝트 초기화
+                objectManager = new ObjectManager();
+                selectionSystem = new SelectionSystem(objectManager);
+                canvasRenderer = new CanvasRenderer(mainCanvas, objectManager);
+
+                console.log('resetBoardState: clearing cursors');
+                // 커서 제거
+                cursors.forEach((data, addr) => {
+                    if (data.element) data.element.remove();
+                });
+                cursors.clear();
+
+                console.log('resetBoardState: clearing UI');
+                // 유저 목록 초기화
+                document.getElementById('users').innerHTML = '';
+                document.getElementById('user-count').textContent = '0';
+
+                // 상태 초기화
+                isJoined = false;
+                sessionContract = null;
+                stats = { txSent: 0, objects: 0 };
+
+                // UI 초기화
+                document.getElementById('join-btn').disabled = true;
+                document.getElementById('join-btn').textContent = 'Join Room';
+
+                console.log('resetBoardState: rendering');
+                // 캔버스 클리어
+                render();
+
+                log('Board state reset', 'tx');
+                console.log('resetBoardState: complete');
+            } catch (error) {
+                console.error('resetBoardState error:', error);
+            }
+        }
+
         async function selectBoard(boardAddress) {
+            console.log('selectBoard called with:', boardAddress);
+
             if (!boardAddress || !ethers.utils.isAddress(boardAddress)) {
                 alert('Invalid board address!');
+                console.log('Invalid address');
                 return;
             }
 
+            // 기존 보드 상태 초기화
+            console.log('Calling resetBoardState...');
+            resetBoardState();
+            console.log('resetBoardState done');
+
             contractAddress = boardAddress;
             contract = new ethers.Contract(contractAddress, CONTRACT_ABI, signer);
+            console.log('Contract created');
 
             try {
+                console.log('Calling canvasVersion...');
                 const version = await contract.canvasVersion();
+                console.log('Version:', version);
                 log(`Selected board (version ${version})`, 'tx');
                 localStorage.setItem('collaborationContract', contractAddress);
 
                 document.getElementById('contract-modal').classList.remove('active');
                 document.getElementById('deploy-btn').textContent = 'Board Selected';
-                document.getElementById('join-btn').disabled = false;
+
+                // 닉네임 모달 표시
+                showNicknameModal();
 
             } catch (error) {
+                console.error('selectBoard error:', error);
                 log(`Invalid board: ${error.message}`, 'error');
             }
         }
@@ -2873,6 +3688,26 @@
             }
         }
 
+        function showNicknameModal() {
+            const modal = document.getElementById('nickname-modal');
+            const input = document.getElementById('nickname-input');
+            const preview = document.getElementById('nickname-preview-text');
+
+            // 저장된 닉네임이 있으면 사용, 없으면 기본값
+            const savedNickname = localStorage.getItem('userNickname');
+            const defaultNickname = savedNickname || `Designer_${myAddress.slice(-4)}`;
+            input.value = defaultNickname;
+            preview.textContent = defaultNickname;
+
+            modal.classList.add('active');
+            input.focus();
+            input.select();
+        }
+
+        function hideNicknameModal() {
+            document.getElementById('nickname-modal').classList.remove('active');
+        }
+
         async function joinSession() {
             const joinBtn = document.getElementById('join-btn');
 
@@ -2883,22 +3718,33 @@
                 // 메인 지갑 직접 사용 (세션 월렛 대신)
                 sessionContract = new ethers.Contract(contractAddress, CONTRACT_ABI, signer);
 
-                const nickname = `Designer_${myAddress.slice(-4)}`;
+                let nickname = userNickname || `Designer_${myAddress.slice(-4)}`;
 
                 // 이미 참가했는지 확인
                 try {
                     const userInfo = await sessionContract.getUserInfo(myAddress);
                     if (userInfo.isActive) {
-                        log('Already joined, reconnecting...', 'tx');
+                        // 재접속: 닉네임이 다르면 업데이트
+                        const storedNickname = userInfo.nickname;
+                        if (userNickname && userNickname !== storedNickname) {
+                            log(`Updating nickname to ${userNickname}...`);
+                            const tx = await sessionContract.updateNickname(userNickname);
+                            await tx.wait();
+                            stats.txSent++;
+                            nickname = userNickname;
+                        } else {
+                            nickname = storedNickname || nickname;
+                        }
+                        log(`Reconnected as ${nickname}`, 'tx');
                     } else {
-                        log('Joining room...');
+                        log(`Joining as ${nickname}...`);
                         const tx = await sessionContract.join(nickname);
                         await tx.wait();
                         stats.txSent++;
                     }
                 } catch (e) {
                     // getUserInfo 실패 시 join 시도
-                    log('Joining room...');
+                    log(`Joining as ${nickname}...`);
                     const tx = await sessionContract.join(nickname);
                     await tx.wait();
                     stats.txSent++;
@@ -2933,7 +3779,19 @@
         }
 
         function createCursor(address, nickname) {
-            if (cursors.has(address.toLowerCase())) return;
+            const addr = address.toLowerCase();
+
+            // 이미 커서가 있으면 닉네임만 업데이트
+            if (cursors.has(addr)) {
+                const existing = cursors.get(addr);
+                if (existing.nickname !== nickname) {
+                    existing.nickname = nickname;
+                    const label = existing.element.querySelector('.cursor-label');
+                    if (label) label.textContent = nickname;
+                    updateUserList();
+                }
+                return;
+            }
 
             const color = getColorForAddress(address);
             const cursor = document.createElement('div');
@@ -2945,7 +3803,7 @@
             `;
 
             cursorLayer.appendChild(cursor);
-            cursors.set(address.toLowerCase(), { element: cursor, nickname, color });
+            cursors.set(addr, { element: cursor, nickname, color });
             updateUserList();
         }
 
@@ -3164,8 +4022,21 @@
                     const id = objectId.toNumber();
                     const obj = objectManager.getObject(id);
                     if (obj && obj.bounds) {
-                        obj.bounds.x = newX.toNumber ? newX.toNumber() : newX;
-                        obj.bounds.y = newY.toNumber ? newY.toNumber() : newY;
+                        const newXVal = newX.toNumber ? newX.toNumber() : newX;
+                        const newYVal = newY.toNumber ? newY.toNumber() : newY;
+                        const dx = newXVal - obj.bounds.x;
+                        const dy = newYVal - obj.bounds.y;
+
+                        obj.bounds.x = newXVal;
+                        obj.bounds.y = newYVal;
+
+                        // 스트로크의 경우 포인트도 이동
+                        if (obj.type === 'stroke' && obj.points) {
+                            for (let i = 0; i < obj.points.length; i += 2) {
+                                obj.points[i] += dx;
+                                obj.points[i + 1] += dy;
+                            }
+                        }
                     }
                 }
 
@@ -3209,10 +4080,15 @@
 
         // ===== 이벤트 폴링 =====
         function startEventPolling() {
+            // 기존 폴링 중단
+            if (pollingIntervalId) {
+                clearInterval(pollingIntervalId);
+            }
+
             let lastBlock = 0;
 
             // 100ms 폴링으로 실시간 동기화
-            setInterval(async () => {
+            pollingIntervalId = setInterval(async () => {
                 try {
                     const currentBlock = await provider.getBlockNumber();
                     if (lastBlock === 0) lastBlock = currentBlock - 1;
@@ -3397,8 +4273,21 @@
                 const id = objectId.toNumber();
                 const obj = objectManager.getObject(id);
                 if (obj && obj.bounds) {
-                    obj.bounds.x = newX.toNumber ? newX.toNumber() : newX;
-                    obj.bounds.y = newY.toNumber ? newY.toNumber() : newY;
+                    const newXVal = newX.toNumber ? newX.toNumber() : newX;
+                    const newYVal = newY.toNumber ? newY.toNumber() : newY;
+                    const dx = newXVal - obj.bounds.x;
+                    const dy = newYVal - obj.bounds.y;
+
+                    obj.bounds.x = newXVal;
+                    obj.bounds.y = newYVal;
+
+                    // 스트로크의 경우 포인트도 이동
+                    if (obj.type === 'stroke' && obj.points) {
+                        for (let i = 0; i < obj.points.length; i += 2) {
+                            obj.points[i] += dx;
+                            obj.points[i + 1] += dy;
+                        }
+                    }
                     render();
                 }
             }
@@ -3411,12 +4300,33 @@
 
             for (const event of deletedEvents) {
                 const { user, objectId } = event.args;
-                if (user.toLowerCase() === myAddress?.toLowerCase()) continue;
+                const id = typeof objectId === 'bigint' ? Number(objectId) : (objectId.toNumber ? objectId.toNumber() : objectId);
+                console.log(`[Delete Event] user=${user}, objectId=${id}, myAddress=${myAddress}`);
 
-                const id = objectId.toNumber();
+                if (user.toLowerCase() === myAddress?.toLowerCase()) {
+                    console.log('[Delete Event] Skipping - my own delete');
+                    continue;
+                }
+
                 log(`Object #${id} deleted by ${user.slice(0, 8)}...`, 'event');
                 objectManager.deleteObject(id);
-                render();
+            }
+
+            // ContentUpdated (스티키 노트, 텍스트 내용 업데이트)
+            const contentEvents = await contract.queryFilter(
+                contract.filters.ContentUpdated(),
+                fromBlock, toBlock
+            );
+
+            for (const event of contentEvents) {
+                const { objectId, newContent } = event.args;
+                const id = objectId.toNumber ? objectId.toNumber() : Number(objectId);
+                const obj = objectManager.getObject(id);
+                if (obj) {
+                    obj.content = newContent;
+                    log(`Content updated for #${id}`, 'event');
+                    render();
+                }
             }
 
             // CanvasCleared
@@ -3461,6 +4371,23 @@
                     log(`${nickname} joined`, 'event');
                 }
             }
+
+            // NicknameUpdated
+            const nicknameEvents = await contract.queryFilter(
+                contract.filters.NicknameUpdated(),
+                fromBlock, toBlock
+            );
+
+            for (const event of nicknameEvents) {
+                const { user, newNickname } = event.args;
+                createCursor(user, newNickname);  // createCursor는 이미 있으면 업데이트함
+                if (user.toLowerCase() !== myAddress?.toLowerCase()) {
+                    log(`${newNickname} updated nickname`, 'event');
+                }
+            }
+
+            // 항상 렌더링 (동기화 보장)
+            render();
         }
 
         // ===== 시작 =====

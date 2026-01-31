@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collaboration Board - Figma-like Real-time Tool</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <div id="canvas-container">
+        <canvas id="main-canvas"></canvas>
+        <canvas id="selection-canvas"></canvas>
+        <div id="cursor-layer"></div>
+    </div>
+
+    <!-- 상단 툴바 -->
+    <div id="toolbar">
+        <div class="tool-group">
+            <button class="tool-btn" data-tool="select" title="Select (V)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
+                </svg>
+            </button>
+        </div>
+        <div class="tool-group">
+            <button class="tool-btn active" data-tool="pen" title="Pen (P)">✏️</button>
+            <button class="tool-btn" data-tool="eraser" title="Eraser (E)">🧽</button>
+        </div>
+        <div class="tool-group">
+            <button class="tool-btn" data-tool="rect" title="Rectangle (R)">⬜</button>
+            <button class="tool-btn" data-tool="ellipse" title="Ellipse (O)">⭕</button>
+            <button class="tool-btn" data-tool="line" title="Line (L)">📏</button>
+            <button class="tool-btn" data-tool="arrow" title="Arrow (A)">➡️</button>
+        </div>
+        <div class="tool-group">
+            <button class="tool-btn" data-tool="sticky" title="Sticky Note (S)">📝</button>
+            <button class="tool-btn" data-tool="text" title="Text (T)">T</button>
+        </div>
+        <div class="tool-group" id="color-palette"></div>
+        <div class="tool-group">
+            <input type="range" id="brush-size" min="1" max="20" value="3">
+            <div id="brush-preview"><div id="brush-dot"></div></div>
+        </div>
+        <div class="tool-group">
+            <button class="tool-btn" id="clear-btn" title="Clear Canvas">🗑️</button>
+        </div>
+    </div>
+
+    <!-- 좌측 상태 패널 -->
+    <div id="left-panel" class="draggable-panel">
+        <div class="panel-header" data-panel="left-panel">
+            <h1>Collaboration Board</h1>
+            <button class="collapse-btn" data-target="left-content">−</button>
+        </div>
+        <div class="panel-content" id="left-content">
+            <div class="subtitle">Figma-like tool on blockchain</div>
+            <div class="status-row">
+                <span class="status-label">Status</span>
+                <span class="status-value" id="connection-status">Not Connected</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Address</span>
+                <span class="status-value" id="my-address">-</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Objects</span>
+                <span class="status-value" id="object-count">0</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">TX Sent</span>
+                <span class="status-value" id="tx-sent">0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 우측 유저 패널 -->
+    <div id="right-panel" class="draggable-panel">
+        <div class="panel-header" data-panel="right-panel">
+            <h2>Online (<span id="user-count">0</span>)</h2>
+            <button class="collapse-btn" data-target="right-content">−</button>
+        </div>
+        <div class="panel-content" id="right-content">
+            <div id="users"></div>
+        </div>
+    </div>
+
+    <!-- 레이어 패널 -->
+    <div id="layer-panel" class="draggable-panel">
+        <div class="panel-header" data-panel="layer-panel">
+            <h3>Layers</h3>
+            <button class="collapse-btn" data-target="layer-content">−</button>
+        </div>
+        <div class="panel-content" id="layer-content">
+            <div class="layer-list" id="layer-list"></div>
+            <div class="layer-actions">
+                <button class="layer-btn" id="bring-front-btn" title="Bring to Front">⬆️</button>
+                <button class="layer-btn" id="send-back-btn" title="Send to Back">⬇️</button>
+                <button class="layer-btn" id="lock-btn" title="Lock">🔒</button>
+                <button class="layer-btn" id="delete-btn" title="Delete">🗑️</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 이벤트 로그 -->
+    <div id="event-log"></div>
+
+    <!-- 연결 버튼 -->
+    <div id="connect-area">
+        <select id="account-select">
+            <option value="0">Anvil #0 (0xf39F...2266)</option>
+            <option value="1">Anvil #1 (0x7099...79C8)</option>
+            <option value="2">Anvil #2 (0x3C44...93fC)</option>
+            <option value="3">Anvil #3 (0x90F7...4485)</option>
+            <option value="4">Anvil #4 (0x15d3...2b28)</option>
+            <option value="custom">Custom Key...</option>
+        </select>
+        <input type="text" id="pk-input" placeholder="Enter Private Key (0x...)" class="pk-input">
+        <button class="btn" id="connect-btn">Connect</button>
+        <button class="btn secondary" id="disconnect-btn" style="display:none;">Disconnect</button>
+        <button class="btn secondary" id="deploy-btn" disabled>Setup Contract</button>
+        <button class="btn secondary" id="join-btn" disabled>Join Room</button>
+    </div>
+
+    <!-- 보드 선택 모달 -->
+    <div class="modal" id="contract-modal">
+        <div class="modal-content modal-wide">
+            <h2>Select Whiteboard</h2>
+
+            <!-- 보드 목록 -->
+            <div id="board-list" class="board-list">
+                <div class="board-list-loading">Loading boards...</div>
+            </div>
+
+            <!-- 새 보드 만들기 -->
+            <div class="modal-section">
+                <p class="modal-section-title">Or create a new board:</p>
+                <div class="create-board-row">
+                    <input type="text" id="new-board-name" placeholder="Board name">
+                    <button class="btn" id="create-board-btn">Create</button>
+                </div>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="allow-anyone-delete">
+                    Allow anyone to delete (uncheck for owner-only)
+                </label>
+            </div>
+
+            <!-- 수동 입력 (접기) -->
+            <details>
+                <summary>Manual address entry</summary>
+                <div>
+                    <input type="text" id="contract-input" placeholder="0x... (contract address)">
+                    <button class="btn secondary" id="use-existing-btn" style="margin-top:8px;width:100%;">Connect</button>
+                </div>
+            </details>
+
+            <!-- Registry 변경 -->
+            <div class="modal-footer">
+                <button class="btn secondary btn-small" id="change-registry-btn">Change Registry Address</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 닉네임 입력 모달 -->
+    <div class="modal" id="nickname-modal">
+        <div class="modal-content" style="max-width: 380px;">
+            <h2>Enter Your Nickname</h2>
+            <p style="margin-bottom: 20px;">Choose a name that other collaborators will see.</p>
+            <input type="text" id="nickname-input" placeholder="Your nickname..." maxlength="20" autofocus>
+            <div class="nickname-preview">
+                <span class="preview-label">Preview:</span>
+                <div class="preview-cursor">
+                    <div class="preview-cursor-icon"></div>
+                    <span class="preview-cursor-name" id="nickname-preview-text">Designer</span>
+                </div>
+            </div>
+            <div class="btn-group" style="margin-top: 20px;">
+                <button class="btn secondary" id="nickname-cancel-btn">Cancel</button>
+                <button class="btn" id="nickname-confirm-btn">Join Board</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 텍스트 입력 -->
+    <div id="text-input-overlay">
+        <input type="text" id="text-input" placeholder="Type here...">
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
