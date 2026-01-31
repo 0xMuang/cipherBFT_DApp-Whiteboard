@@ -180,22 +180,69 @@
         }
 
         /* 좌측 패널 */
-        #left-panel {
+        /* 드래그 가능한 패널 공통 스타일 */
+        .draggable-panel {
             position: fixed;
-            top: 20px;
-            left: 20px;
             background: rgba(0, 0, 0, 0.9);
             backdrop-filter: blur(10px);
-            padding: 20px;
             border-radius: 16px;
             border: 1px solid rgba(255, 255, 255, 0.1);
-            min-width: 200px;
             z-index: 1000;
+            min-width: 180px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            cursor: move;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            user-select: none;
+        }
+
+        .panel-header h1, .panel-header h2, .panel-header h3 {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .panel-content {
+            padding: 12px 16px;
+            transition: all 0.2s ease;
+        }
+
+        .panel-content.collapsed {
+            display: none;
+        }
+
+        .collapse-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #888;
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .collapse-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+
+        #left-panel {
+            top: 20px;
+            left: 20px;
         }
 
         #left-panel h1 {
             font-size: 16px;
-            margin-bottom: 4px;
+            margin: 0;
             background: linear-gradient(135deg, #00ff88, #00ccff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -205,7 +252,7 @@
         .subtitle {
             font-size: 11px;
             color: #666;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         .status-row {
@@ -230,24 +277,19 @@
 
         /* 우측 패널 - 유저 리스트 */
         #right-panel {
-            position: fixed;
             top: 20px;
             right: 20px;
-            background: rgba(0, 0, 0, 0.9);
-            backdrop-filter: blur(10px);
-            padding: 16px;
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            min-width: 180px;
-            max-height: 200px;
+            max-height: 250px;
+        }
+
+        #right-panel .panel-content {
+            max-height: 150px;
             overflow-y: auto;
-            z-index: 1000;
         }
 
         #right-panel h2 {
             font-size: 13px;
             color: #888;
-            margin-bottom: 12px;
         }
 
         .user-item {
@@ -270,39 +312,21 @@
 
         /* 레이어 패널 */
         #layer-panel {
-            position: fixed;
             right: 20px;
-            top: 240px;
-            background: rgba(0, 0, 0, 0.9);
-            backdrop-filter: blur(10px);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            min-width: 200px;
+            top: 280px;
             max-height: 350px;
-            z-index: 1000;
         }
 
-        .layer-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 16px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .layer-header h3 {
-            font-size: 13px;
-            margin: 0;
-            color: #888;
-        }
-
-        .layer-content {
+        #layer-panel .panel-content {
+            padding: 8px 12px;
             max-height: 250px;
             overflow-y: auto;
         }
 
-        .layer-content.collapsed {
-            display: none;
+        #layer-panel h3 {
+            color: #888;
+            font-size: 13px;
+            margin: 0;
         }
 
         .layer-list {
@@ -618,40 +642,50 @@
     </div>
 
     <!-- 좌측 상태 패널 -->
-    <div id="left-panel">
-        <h1>Collaboration Board</h1>
-        <div class="subtitle">Figma-like tool on blockchain</div>
-        <div class="status-row">
-            <span class="status-label">Status</span>
-            <span class="status-value" id="connection-status">Not Connected</span>
+    <div id="left-panel" class="draggable-panel">
+        <div class="panel-header" data-panel="left-panel">
+            <h1>Collaboration Board</h1>
+            <button class="collapse-btn" data-target="left-content">−</button>
         </div>
-        <div class="status-row">
-            <span class="status-label">Address</span>
-            <span class="status-value" id="my-address">-</span>
-        </div>
-        <div class="status-row">
-            <span class="status-label">Objects</span>
-            <span class="status-value" id="object-count">0</span>
-        </div>
-        <div class="status-row">
-            <span class="status-label">TX Sent</span>
-            <span class="status-value" id="tx-sent">0</span>
+        <div class="panel-content" id="left-content">
+            <div class="subtitle">Figma-like tool on blockchain</div>
+            <div class="status-row">
+                <span class="status-label">Status</span>
+                <span class="status-value" id="connection-status">Not Connected</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Address</span>
+                <span class="status-value" id="my-address">-</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Objects</span>
+                <span class="status-value" id="object-count">0</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">TX Sent</span>
+                <span class="status-value" id="tx-sent">0</span>
+            </div>
         </div>
     </div>
 
     <!-- 우측 유저 패널 -->
-    <div id="right-panel">
-        <h2>Online (<span id="user-count">0</span>)</h2>
-        <div id="users"></div>
+    <div id="right-panel" class="draggable-panel">
+        <div class="panel-header" data-panel="right-panel">
+            <h2>Online (<span id="user-count">0</span>)</h2>
+            <button class="collapse-btn" data-target="right-content">−</button>
+        </div>
+        <div class="panel-content" id="right-content">
+            <div id="users"></div>
+        </div>
     </div>
 
     <!-- 레이어 패널 -->
-    <div id="layer-panel">
-        <div class="layer-header">
+    <div id="layer-panel" class="draggable-panel">
+        <div class="panel-header" data-panel="layer-panel">
             <h3>Layers</h3>
-            <button class="tool-btn" id="layer-toggle" style="width:24px;height:24px;font-size:12px;">-</button>
+            <button class="collapse-btn" data-target="layer-content">−</button>
         </div>
-        <div class="layer-content">
+        <div class="panel-content" id="layer-content">
             <div class="layer-list" id="layer-list"></div>
             <div class="layer-actions">
                 <button class="layer-btn" id="bring-front-btn" title="Bring to Front">⬆️</button>
@@ -763,6 +797,9 @@
             // Canvas
             "function clearCanvas() external",
 
+            // Cursor
+            "function moveCursor(int32 x, int32 y) external",
+
             // View
             "function totalObjects() view returns (uint256)",
             "function canvasVersion() view returns (uint256)",
@@ -782,7 +819,8 @@
             "event ObjectLockToggled(uint256 indexed objectId, bool isLocked)",
             "event UserJoined(address indexed user, string nickname)",
             "event UserLeft(address indexed user)",
-            "event CanvasCleared(address indexed user)"
+            "event CanvasCleared(address indexed user)",
+            "event CursorMoved(address indexed user, int32 x, int32 y)"
         ];
 
         // ===== ObjectManager =====
@@ -1412,11 +1450,13 @@
             document.addEventListener('keydown', handleKeyDown);
 
             // 레이어 패널 이벤트
-            document.getElementById('layer-toggle').onclick = toggleLayerPanel;
             document.getElementById('bring-front-btn').onclick = () => handleLayerAction('front');
             document.getElementById('send-back-btn').onclick = () => handleLayerAction('back');
             document.getElementById('lock-btn').onclick = () => handleLayerAction('lock');
             document.getElementById('delete-btn').onclick = () => handleLayerAction('delete');
+
+            // 패널 드래그 & 접기 설정
+            setupDraggablePanels();
 
             // 클리어 버튼
             document.getElementById('clear-btn').onclick = clearCanvas;
@@ -1570,11 +1610,55 @@
             return `${prefix} #${obj.id}`;
         }
 
-        function toggleLayerPanel() {
-            const content = document.querySelector('.layer-content');
-            const btn = document.getElementById('layer-toggle');
-            content.classList.toggle('collapsed');
-            btn.textContent = content.classList.contains('collapsed') ? '+' : '-';
+        function setupDraggablePanels() {
+            const panels = document.querySelectorAll('.draggable-panel');
+
+            panels.forEach(panel => {
+                const header = panel.querySelector('.panel-header');
+                const collapseBtn = panel.querySelector('.collapse-btn');
+                const contentId = collapseBtn?.dataset.target;
+                const content = document.getElementById(contentId);
+
+                // 접기/펼치기
+                if (collapseBtn && content) {
+                    collapseBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        content.classList.toggle('collapsed');
+                        collapseBtn.textContent = content.classList.contains('collapsed') ? '+' : '−';
+                    };
+                }
+
+                // 드래그
+                let isDragging = false;
+                let startX, startY, startLeft, startTop;
+
+                header.addEventListener('mousedown', (e) => {
+                    if (e.target === collapseBtn) return;
+                    isDragging = true;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    const rect = panel.getBoundingClientRect();
+                    startLeft = rect.left;
+                    startTop = rect.top;
+                    panel.style.transition = 'none';
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (!isDragging) return;
+                    const dx = e.clientX - startX;
+                    const dy = e.clientY - startY;
+                    panel.style.left = (startLeft + dx) + 'px';
+                    panel.style.top = (startTop + dy) + 'px';
+                    panel.style.right = 'auto';
+                });
+
+                document.addEventListener('mouseup', () => {
+                    if (isDragging) {
+                        isDragging = false;
+                        panel.style.transition = '';
+                    }
+                });
+            });
         }
 
         function updateStats() {
@@ -1587,8 +1671,10 @@
 
             if (currentTool === 'select') {
                 handleSelectMouseDown(x, y, e);
-            } else if (currentTool === 'pen' || currentTool === 'eraser') {
+            } else if (currentTool === 'pen') {
                 handlePenMouseDown(x, y);
+            } else if (currentTool === 'eraser') {
+                handleEraserMouseDown(x, y);
             } else if (['rect', 'ellipse', 'line', 'arrow'].includes(currentTool)) {
                 handleShapeMouseDown(x, y);
             } else if (currentTool === 'sticky') {
@@ -1598,14 +1684,27 @@
             }
         }
 
+        // 커서 위치 전송 쓰로틀링
+        let lastCursorSend = 0;
+        const CURSOR_SEND_INTERVAL = 100; // 100ms마다 전송
+
         function handleMouseMove(e) {
             const { x, y } = getCanvasPoint(e);
+
+            // 커서 위치 전송 (쓰로틀링)
+            if (sessionContract && Date.now() - lastCursorSend > CURSOR_SEND_INTERVAL) {
+                lastCursorSend = Date.now();
+                sendCursorPosition(x, y);
+            }
 
             if (currentTool === 'select' && selectionSystem.transformMode) {
                 selectionSystem.updateTransform({ x, y });
                 render();
+            } else if (currentTool === 'eraser') {
+                // 지우개 커서 항상 표시
+                handleEraserMouseMove(x, y);
             } else if (isDrawing) {
-                if (currentTool === 'pen' || currentTool === 'eraser') {
+                if (currentTool === 'pen') {
                     handlePenMouseMove(x, y);
                 } else if (['rect', 'ellipse', 'line', 'arrow'].includes(currentTool)) {
                     handleShapeMouseMove(x, y);
@@ -1619,8 +1718,10 @@
             if (currentTool === 'select' && selectionSystem.transformMode) {
                 handleSelectMouseUp();
             } else if (isDrawing) {
-                if (currentTool === 'pen' || currentTool === 'eraser') {
+                if (currentTool === 'pen') {
                     handlePenMouseUp();
+                } else if (currentTool === 'eraser') {
+                    handleEraserMouseUp();
                 } else if (['rect', 'ellipse', 'line', 'arrow'].includes(currentTool)) {
                     handleShapeMouseUp(x, y);
                 }
@@ -1681,11 +1782,22 @@
             render();
         }
 
-        // ===== Pen 도구 =====
+        // ===== Pen 도구 (실시간 스트리밍) =====
+        let strokeStreamTimer = null;
+        const STREAM_INTERVAL = 100; // 100ms마다 전송
+        const MIN_POINTS_TO_STREAM = 6; // 최소 3개 좌표 (6개 값)
+
         function handlePenMouseDown(x, y) {
             isDrawing = true;
             lastPoint = { x, y };
             strokePoints = [x, y];
+
+            // 실시간 스트리밍 타이머 시작
+            if (sessionContract) {
+                strokeStreamTimer = setInterval(() => {
+                    streamStrokePoints();
+                }, STREAM_INTERVAL);
+            }
         }
 
         function handlePenMouseMove(x, y) {
@@ -1695,8 +1807,8 @@
             mainCtx.beginPath();
             mainCtx.moveTo(lastPoint.x, lastPoint.y);
             mainCtx.lineTo(x, y);
-            mainCtx.strokeStyle = currentTool === 'eraser' ? '#ffffff' : currentColor;
-            mainCtx.lineWidth = currentTool === 'eraser' ? brushSize * 3 : brushSize;
+            mainCtx.strokeStyle = currentColor;
+            mainCtx.lineWidth = brushSize;
             mainCtx.lineCap = 'round';
             mainCtx.lineJoin = 'round';
             mainCtx.stroke();
@@ -1705,10 +1817,49 @@
             lastPoint = { x, y };
         }
 
+        function streamStrokePoints() {
+            if (strokePoints.length >= MIN_POINTS_TO_STREAM && sessionContract) {
+                const colorIdx = currentColorIndex;
+                const width = brushSize;
+
+                // 현재까지의 포인트로 스트로크 전송
+                const pointsToSend = [...strokePoints];
+
+                const obj = {
+                    id: objectManager.generateLocalId(),
+                    type: 'stroke',
+                    creator: myAddress,
+                    colorIndex: colorIdx,
+                    strokeWidth: width,
+                    layer: objectManager.objects.size + 1,
+                    points: pointsToSend,
+                    bounds: objectManager.calculateStrokeBounds(pointsToSend)
+                };
+
+                objectManager.addObject(obj);
+                stats.objects++;
+
+                // 온체인 전송 (논블로킹)
+                sendCreateStroke(pointsToSend, colorIdx, width, obj.id);
+
+                // 마지막 점을 시작점으로 유지 (연결을 위해)
+                const lastX = strokePoints[strokePoints.length - 2];
+                const lastY = strokePoints[strokePoints.length - 1];
+                strokePoints = [lastX, lastY];
+            }
+        }
+
         function handlePenMouseUp() {
+            // 타이머 정리
+            if (strokeStreamTimer) {
+                clearInterval(strokeStreamTimer);
+                strokeStreamTimer = null;
+            }
+
+            // 남은 포인트 전송
             if (strokePoints.length >= 4) {
-                const colorIdx = currentTool === 'eraser' ? 1 : currentColorIndex;
-                const width = currentTool === 'eraser' ? brushSize * 3 : brushSize;
+                const colorIdx = currentColorIndex;
+                const width = brushSize;
 
                 const obj = {
                     id: objectManager.generateLocalId(),
@@ -1734,6 +1885,116 @@
 
             strokePoints = [];
             lastPoint = null;
+        }
+
+        // ===== Eraser 도구 (오브젝트 삭제) =====
+        let erasedObjects = new Set(); // 이미 지운 오브젝트 추적
+        const ERASER_RADIUS = 25; // 지우개 반경
+
+        function handleEraserMouseDown(x, y) {
+            isDrawing = true;
+            erasedObjects.clear();
+            eraseAtPoint(x, y);
+        }
+
+        function handleEraserMouseMove(x, y) {
+            // 지우개 범위 표시
+            render();
+            mainCtx.beginPath();
+            mainCtx.arc(x, y, ERASER_RADIUS, 0, Math.PI * 2);
+            mainCtx.strokeStyle = 'rgba(255, 100, 100, 0.5)';
+            mainCtx.lineWidth = 2;
+            mainCtx.stroke();
+
+            if (!isDrawing) return;
+            eraseAtPoint(x, y);
+        }
+
+        function handleEraserMouseUp() {
+            erasedObjects.clear();
+        }
+
+        function eraseAtPoint(x, y) {
+            const objects = objectManager.getObjectsInLayerOrder();
+            const myAddr = myAddress?.toLowerCase();
+
+            for (const obj of objects) {
+                // 이미 이번 드래그에서 지운 오브젝트는 스킵
+                if (erasedObjects.has(obj.id)) continue;
+
+                // 내가 만든 오브젝트만 지울 수 있음 (creator가 없으면 내꺼로 간주)
+                const objCreator = obj.creator?.toLowerCase();
+                if (objCreator && objCreator !== myAddr) continue;
+
+                // 충돌 검사
+                const isNear = isPointNearObject(x, y, obj, ERASER_RADIUS);
+                if (isNear) {
+                    erasedObjects.add(obj.id);
+                    objectManager.deleteObject(obj.id);
+                    log(`Erased ${obj.type} #${obj.id}`, 'event');
+
+                    // 온체인 삭제
+                    if (sessionContract && obj.id >= 0) {
+                        sendDeleteObject(obj.id);
+                    }
+
+                    render();
+                }
+            }
+        }
+
+        function isPointNearObject(px, py, obj, radius) {
+            if (!obj.bounds) return false;
+
+            if (obj.type === 'stroke' && obj.points) {
+                // 스트로크: 각 선분과의 거리 체크
+                for (let i = 0; i < obj.points.length - 2; i += 2) {
+                    const x1 = obj.points[i];
+                    const y1 = obj.points[i + 1];
+                    const x2 = obj.points[i + 2];
+                    const y2 = obj.points[i + 3];
+
+                    if (pointToLineDistance(px, py, x1, y1, x2, y2) < radius + (obj.strokeWidth || 2)) {
+                        return true;
+                    }
+                }
+                return false;
+            } else {
+                // 도형/스티키노트/텍스트: 바운딩 박스 + 여유 공간
+                const b = obj.bounds;
+                return px >= b.x - radius && px <= b.x + b.width + radius &&
+                       py >= b.y - radius && py <= b.y + b.height + radius;
+            }
+        }
+
+        function pointToLineDistance(px, py, x1, y1, x2, y2) {
+            const A = px - x1;
+            const B = py - y1;
+            const C = x2 - x1;
+            const D = y2 - y1;
+
+            const dot = A * C + B * D;
+            const lenSq = C * C + D * D;
+            let param = -1;
+
+            if (lenSq !== 0) param = dot / lenSq;
+
+            let xx, yy;
+
+            if (param < 0) {
+                xx = x1;
+                yy = y1;
+            } else if (param > 1) {
+                xx = x2;
+                yy = y2;
+            } else {
+                xx = x1 + param * C;
+                yy = y1 + param * D;
+            }
+
+            const dx = px - xx;
+            const dy = py - yy;
+            return Math.sqrt(dx * dx + dy * dy);
         }
 
         // ===== Shape 도구 =====
@@ -2066,14 +2327,21 @@
             for (const obj of selected) {
                 if (action === 'front') {
                     if (sessionContract && obj.id >= 0) sendBringToFront(obj.id);
+                    else if (obj.id < 0) log('Object pending - wait for confirmation', 'error');
                 } else if (action === 'back') {
                     if (sessionContract && obj.id >= 0) sendSendToBack(obj.id);
+                    else if (obj.id < 0) log('Object pending - wait for confirmation', 'error');
                 } else if (action === 'lock') {
                     obj.isLocked = !obj.isLocked;
                     if (sessionContract && obj.id >= 0) sendToggleLock(obj.id);
                 } else if (action === 'delete') {
                     objectManager.deleteObject(obj.id);
-                    if (sessionContract && obj.id >= 0) sendDeleteObject(obj.id);
+                    if (sessionContract && obj.id >= 0) {
+                        sendDeleteObject(obj.id);
+                        log(`Deleted object #${obj.id}`, 'tx');
+                    } else if (obj.id < 0) {
+                        log('Local object deleted (not yet on chain)', 'event');
+                    }
                 }
             }
 
@@ -2236,6 +2504,18 @@
             }
         }
 
+        async function sendCursorPosition(x, y) {
+            if (!sessionContract) return;
+
+            try {
+                // 논블로킹으로 전송 (await 없이)
+                sessionContract.moveCursor(Math.round(x), Math.round(y), { gasLimit: 50000 })
+                    .catch(() => {}); // 에러 무시
+            } catch (error) {
+                // 무시
+            }
+        }
+
         async function sendBringToFront(objectId) {
             if (!sessionContract) return;
 
@@ -2282,6 +2562,9 @@
                     selectionSystem.selectedIds.delete(localId);
                     selectionSystem.selectedIds.add(realId);
                 }
+
+                // 레이어 패널 업데이트
+                render();
             }
         }
 
@@ -2439,6 +2722,10 @@
                 document.getElementById('my-address').textContent = `${myAddress.slice(0, 6)}...${myAddress.slice(-4)}`;
                 createCursor(myAddress, nickname);
 
+                // 기존 그림 불러오기
+                log('Loading existing drawings...');
+                await loadInitialState();
+
                 // 이벤트 폴링 시작
                 startEventPolling();
 
@@ -2475,6 +2762,24 @@
             updateUserList();
         }
 
+        function updateRemoteCursor(address, x, y) {
+            const addr = address.toLowerCase();
+            const cursorData = cursors.get(addr);
+
+            if (!cursorData) {
+                // 커서가 없으면 생성
+                createCursor(address, `User_${address.slice(-4)}`);
+                return updateRemoteCursor(address, x, y);
+            }
+
+            const posX = typeof x === 'object' ? x.toNumber() : x;
+            const posY = typeof y === 'object' ? y.toNumber() : y;
+
+            cursorData.element.style.left = posX + 'px';
+            cursorData.element.style.top = posY + 'px';
+            cursorData.element.style.display = 'block';
+        }
+
         function updateUserList() {
             const usersEl = document.getElementById('users');
             usersEl.innerHTML = '';
@@ -2492,10 +2797,234 @@
             });
         }
 
+        // ===== 초기 상태 로드 =====
+        async function loadInitialState() {
+            try {
+                const currentBlock = await provider.getBlockNumber();
+
+                // 마지막 CanvasCleared 이벤트 찾기
+                const clearEvents = await contract.queryFilter(
+                    contract.filters.CanvasCleared(),
+                    0, currentBlock
+                );
+
+                let fromBlock = 0;
+                if (clearEvents.length > 0) {
+                    // 마지막 클리어 이후부터 로드
+                    fromBlock = clearEvents[clearEvents.length - 1].blockNumber;
+                    log(`Loading from block ${fromBlock} (after canvas clear)`);
+                }
+
+                // 삭제된 오브젝트 ID 수집
+                const deletedIds = new Set();
+                const deletedEvents = await contract.queryFilter(
+                    contract.filters.ObjectDeleted(),
+                    fromBlock, currentBlock
+                );
+                for (const event of deletedEvents) {
+                    deletedIds.add(event.args.objectId.toNumber());
+                }
+
+                // StrokePoints 로드
+                const strokeEvents = await contract.queryFilter(
+                    contract.filters.StrokePoints(),
+                    fromBlock, currentBlock
+                );
+
+                for (const event of strokeEvents) {
+                    const { objectId, points } = event.args;
+                    const id = objectId.toNumber();
+
+                    if (deletedIds.has(id)) continue;
+                    if (objectManager.objects.has(id)) continue;
+
+                    try {
+                        const info = await contract.getObjectInfo(id);
+                        if (info.isDeleted) continue;
+
+                        const obj = {
+                            id,
+                            type: 'stroke',
+                            creator: info.creator,
+                            colorIndex: info.colorIndex,
+                            strokeWidth: info.strokeWidth,
+                            layer: info.layer,
+                            points: points.map(p => p.toNumber ? p.toNumber() : p),
+                            bounds: null
+                        };
+                        obj.bounds = objectManager.calculateStrokeBounds(obj.points);
+                        objectManager.addObject(obj);
+                    } catch (e) { }
+                }
+
+                // ShapeGeometry 로드
+                const shapeEvents = await contract.queryFilter(
+                    contract.filters.ShapeGeometry(),
+                    fromBlock, currentBlock
+                );
+
+                for (const event of shapeEvents) {
+                    const { objectId, x, y, width, height, rotation } = event.args;
+                    const id = objectId.toNumber();
+
+                    if (deletedIds.has(id)) continue;
+                    if (objectManager.objects.has(id)) continue;
+
+                    try {
+                        const info = await contract.getObjectInfo(id);
+                        if (info.isDeleted) continue;
+
+                        const obj = {
+                            id,
+                            type: CONFIG.objectTypes[info.objectType],
+                            creator: info.creator,
+                            colorIndex: info.colorIndex,
+                            strokeWidth: info.strokeWidth,
+                            layer: info.layer,
+                            bounds: {
+                                x: x.toNumber ? x.toNumber() : x,
+                                y: y.toNumber ? y.toNumber() : y,
+                                width: width.toNumber ? width.toNumber() : width,
+                                height: height.toNumber ? height.toNumber() : height
+                            },
+                            rotation: rotation.toNumber ? rotation.toNumber() : rotation
+                        };
+                        objectManager.addObject(obj);
+                    } catch (e) { }
+                }
+
+                // StickyNoteData 로드
+                const stickyEvents = await contract.queryFilter(
+                    contract.filters.StickyNoteData(),
+                    fromBlock, currentBlock
+                );
+
+                for (const event of stickyEvents) {
+                    const { objectId, x, y, width, height, content, bgColorIndex } = event.args;
+                    const id = objectId.toNumber();
+
+                    if (deletedIds.has(id)) continue;
+                    if (objectManager.objects.has(id)) continue;
+
+                    try {
+                        const info = await contract.getObjectInfo(id);
+                        if (info.isDeleted) continue;
+
+                        const obj = {
+                            id,
+                            type: 'stickyNote',
+                            creator: info.creator,
+                            colorIndex: info.colorIndex,
+                            bgColorIndex,
+                            strokeWidth: 0,
+                            layer: info.layer,
+                            bounds: {
+                                x: x.toNumber ? x.toNumber() : x,
+                                y: y.toNumber ? y.toNumber() : y,
+                                width: width.toNumber ? width.toNumber() : width,
+                                height: height.toNumber ? height.toNumber() : height
+                            },
+                            content
+                        };
+                        objectManager.addObject(obj);
+                    } catch (e) { }
+                }
+
+                // TextData 로드
+                const textEvents = await contract.queryFilter(
+                    contract.filters.TextData(),
+                    fromBlock, currentBlock
+                );
+
+                for (const event of textEvents) {
+                    const { objectId, x, y, content, fontSize } = event.args;
+                    const id = objectId.toNumber();
+
+                    if (deletedIds.has(id)) continue;
+                    if (objectManager.objects.has(id)) continue;
+
+                    try {
+                        const info = await contract.getObjectInfo(id);
+                        if (info.isDeleted) continue;
+
+                        const obj = {
+                            id,
+                            type: 'text',
+                            creator: info.creator,
+                            colorIndex: info.colorIndex,
+                            strokeWidth: fontSize,
+                            layer: info.layer,
+                            bounds: {
+                                x: x.toNumber ? x.toNumber() : x,
+                                y: y.toNumber ? y.toNumber() : y,
+                                width: 100,
+                                height: fontSize * 5
+                            },
+                            content
+                        };
+                        objectManager.addObject(obj);
+                    } catch (e) { }
+                }
+
+                // 이동된 오브젝트 위치 업데이트
+                const movedEvents = await contract.queryFilter(
+                    contract.filters.ObjectMoved(),
+                    fromBlock, currentBlock
+                );
+
+                for (const event of movedEvents) {
+                    const { objectId, newX, newY } = event.args;
+                    const id = objectId.toNumber();
+                    const obj = objectManager.getObject(id);
+                    if (obj && obj.bounds) {
+                        obj.bounds.x = newX.toNumber ? newX.toNumber() : newX;
+                        obj.bounds.y = newY.toNumber ? newY.toNumber() : newY;
+                    }
+                }
+
+                // 기존 유저 목록 로드
+                const joinEvents = await contract.queryFilter(
+                    contract.filters.UserJoined(),
+                    0, currentBlock
+                );
+
+                const leftEvents = await contract.queryFilter(
+                    contract.filters.UserLeft(),
+                    0, currentBlock
+                );
+
+                // 떠난 유저 주소 수집
+                const leftUsers = new Set();
+                for (const event of leftEvents) {
+                    leftUsers.add(event.args.user.toLowerCase());
+                }
+
+                // 활성 유저만 추가
+                for (const event of joinEvents) {
+                    const { user, nickname } = event.args;
+                    const addr = user.toLowerCase();
+
+                    // 떠난 유저는 스킵, 나 자신도 스킵 (이미 추가됨)
+                    if (leftUsers.has(addr)) continue;
+                    if (addr === myAddress?.toLowerCase()) continue;
+
+                    createCursor(user, nickname);
+                }
+
+                stats.objects = objectManager.objects.size;
+                render();
+                log(`Loaded ${objectManager.objects.size} objects, ${cursors.size} users`, 'tx');
+
+            } catch (error) {
+                log(`Load error: ${error.message}`, 'error');
+            }
+        }
+
         // ===== 이벤트 폴링 =====
         function startEventPolling() {
             let lastBlock = 0;
 
+            // 100ms 폴링으로 실시간 동기화
             setInterval(async () => {
                 try {
                     const currentBlock = await provider.getBlockNumber();
@@ -2508,7 +3037,7 @@
                 } catch (error) {
                     // 무시
                 }
-            }, 300);
+            }, 100);
         }
 
         async function processEvents(fromBlock, toBlock) {
@@ -2697,7 +3226,9 @@
                 const { user, objectId } = event.args;
                 if (user.toLowerCase() === myAddress?.toLowerCase()) continue;
 
-                objectManager.deleteObject(objectId.toNumber());
+                const id = objectId.toNumber();
+                log(`Object #${id} deleted by ${user.slice(0, 8)}...`, 'event');
+                objectManager.deleteObject(id);
                 render();
             }
 
@@ -2714,6 +3245,19 @@
                     selectionSystem.deselectAll();
                     render();
                     log('Canvas cleared by another user', 'event');
+                }
+            }
+
+            // CursorMoved
+            const cursorEvents = await contract.queryFilter(
+                contract.filters.CursorMoved(),
+                fromBlock, toBlock
+            );
+
+            for (const event of cursorEvents) {
+                const { user, x, y } = event.args;
+                if (user.toLowerCase() !== myAddress?.toLowerCase()) {
+                    updateRemoteCursor(user, x, y);
                 }
             }
 

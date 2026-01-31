@@ -136,6 +136,9 @@ contract CollaborationBoard {
     event UserLeft(address indexed user);
     event CanvasCleared(address indexed user);
 
+    // 커서 이벤트
+    event CursorMoved(address indexed user, int32 x, int32 y);
+
     // ===== STATE =====
 
     mapping(uint256 => ObjectMeta) public objects;
@@ -197,6 +200,13 @@ contract CollaborationBoard {
         }
 
         emit UserLeft(msg.sender);
+    }
+
+    /**
+     * @notice 커서 위치 업데이트
+     */
+    function moveCursor(int32 x, int32 y) external onlyActiveUser {
+        emit CursorMoved(msg.sender, x, y);
     }
 
     // ===== OBJECT CREATION =====
