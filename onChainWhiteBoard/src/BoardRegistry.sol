@@ -14,6 +14,7 @@ contract BoardRegistry {
         string name;
         address creator;
         uint256 createdAt;
+        bool allowAnyoneDelete;  // 누구나 삭제 가능 여부
     }
 
     BoardInfo[] public boards;
@@ -23,15 +24,17 @@ contract BoardRegistry {
         uint256 indexed boardId,
         address indexed boardAddress,
         string name,
-        address indexed creator
+        address indexed creator,
+        bool allowAnyoneDelete
     );
 
     /**
      * @notice 새 화이트보드 생성
      * @param name 보드 이름
+     * @param allowAnyoneDelete true면 누구나 삭제 가능, false면 본인만
      */
-    function createBoard(string calldata name) external returns (uint256 boardId, address boardAddress) {
-        CollaborationBoard newBoard = new CollaborationBoard();
+    function createBoard(string calldata name, bool allowAnyoneDelete) external returns (uint256 boardId, address boardAddress) {
+        CollaborationBoard newBoard = new CollaborationBoard(allowAnyoneDelete);
         boardAddress = address(newBoard);
         boardId = boards.length;
 
@@ -39,12 +42,13 @@ contract BoardRegistry {
             boardAddress: boardAddress,
             name: name,
             creator: msg.sender,
-            createdAt: block.timestamp
+            createdAt: block.timestamp,
+            allowAnyoneDelete: allowAnyoneDelete
         }));
 
         userBoards[msg.sender].push(boardId);
 
-        emit BoardCreated(boardId, boardAddress, name, msg.sender);
+        emit BoardCreated(boardId, boardAddress, name, msg.sender, allowAnyoneDelete);
     }
 
     /**
@@ -61,11 +65,12 @@ contract BoardRegistry {
         address boardAddress,
         string memory name,
         address creator,
-        uint256 createdAt
+        uint256 createdAt,
+        bool allowAnyoneDelete
     ) {
         require(boardId < boards.length, "Board not found");
         BoardInfo memory board = boards[boardId];
-        return (board.boardAddress, board.name, board.creator, board.createdAt);
+        return (board.boardAddress, board.name, board.creator, board.createdAt, board.allowAnyoneDelete);
     }
 
     /**

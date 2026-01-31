@@ -1,0 +1,14 @@
+# Build artifacts
+cache/
+out/
+
+# Foundry
+onChainWhiteBoard/cache/
+onChainWhiteBoard/out/
+onChainWhiteBoard/broadcast/
+
+# Node
+node_modules/
+
+# OS
+.DS_Store

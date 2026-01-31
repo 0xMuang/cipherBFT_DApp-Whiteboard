@@ -149,6 +149,15 @@ contract CollaborationBoard {
     uint256 public canvasVersion;
     uint16 public maxLayer;
 
+    // 방 설정
+    bool public allowAnyoneDelete;  // true: 누구나 삭제 가능, false: 본인만 삭제
+
+    // ===== CONSTRUCTOR =====
+
+    constructor(bool _allowAnyoneDelete) {
+        allowAnyoneDelete = _allowAnyoneDelete;
+    }
+
     // ===== MODIFIERS =====
 
     modifier onlyActiveUser() {
@@ -348,10 +357,14 @@ contract CollaborationBoard {
 
     /**
      * @notice 오브젝트 삭제 (소프트 삭제)
+     * @dev allowAnyoneDelete가 true면 누구나, false면 본인만 삭제 가능
      */
     function deleteObject(
         uint256 objectId
-    ) external onlyActiveUser objectExists(objectId) onlyObjectOwner(objectId) {
+    ) external onlyActiveUser objectExists(objectId) {
+        if (!allowAnyoneDelete) {
+            require(objects[objectId].creator == msg.sender, "Not owner");
+        }
         objects[objectId].isDeleted = true;
         emit ObjectDeleted(msg.sender, objectId);
     }

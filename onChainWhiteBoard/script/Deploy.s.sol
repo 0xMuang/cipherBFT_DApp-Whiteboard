@@ -21,7 +21,8 @@ contract DeployCollaborationBoard is Script {
     function run() public {
         vm.startBroadcast();
 
-        CollaborationBoard collab = new CollaborationBoard();
+        // allowAnyoneDelete = false (본인만 삭제 가능)
+        CollaborationBoard collab = new CollaborationBoard(false);
         console.log("CollaborationBoard deployed at:", address(collab));
 
         vm.stopBroadcast();

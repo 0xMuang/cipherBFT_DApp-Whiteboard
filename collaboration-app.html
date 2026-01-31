@@ -730,10 +730,14 @@
             <!-- 새 보드 만들기 -->
             <div style="border-top:1px solid #333;padding-top:16px;margin-top:8px;">
                 <p style="font-size:12px;color:#888;margin-bottom:8px;">Or create a new board:</p>
-                <div style="display:flex;gap:8px;">
+                <div style="display:flex;gap:8px;margin-bottom:8px;">
                     <input type="text" id="new-board-name" placeholder="Board name" style="flex:1;">
                     <button class="btn" id="create-board-btn">Create</button>
                 </div>
+                <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#aaa;cursor:pointer;">
+                    <input type="checkbox" id="allow-anyone-delete" style="width:16px;height:16px;">
+                    누구나 삭제 가능 (체크 해제시 본인만 삭제)
+                </label>
             </div>
 
             <!-- 수동 입력 (접기) -->
@@ -839,12 +843,12 @@
         ];
 
         const REGISTRY_ABI = [
-            "function createBoard(string name) external returns (uint256 boardId, address boardAddress)",
+            "function createBoard(string name, bool allowAnyoneDelete) external returns (uint256 boardId, address boardAddress)",
             "function getBoardCount() view returns (uint256)",
-            "function getBoard(uint256 boardId) view returns (address boardAddress, string name, address creator, uint256 createdAt)",
-            "function getAllBoards() view returns (tuple(address boardAddress, string name, address creator, uint256 createdAt)[])",
+            "function getBoard(uint256 boardId) view returns (address boardAddress, string name, address creator, uint256 createdAt, bool allowAnyoneDelete)",
+            "function getAllBoards() view returns (tuple(address boardAddress, string name, address creator, uint256 createdAt, bool allowAnyoneDelete)[])",
             "function getUserBoards(address user) view returns (uint256[])",
-            "event BoardCreated(uint256 indexed boardId, address indexed boardAddress, string name, address indexed creator)"
+            "event BoardCreated(uint256 indexed boardId, address indexed boardAddress, string name, address indexed creator, bool allowAnyoneDelete)"
         ];
 
         // BoardRegistry 주소 (배포 후 업데이트 필요)
@@ -2738,15 +2742,17 @@
                     boardListDiv.innerHTML = boards.map((board, index) => {
                         const date = new Date(Number(board.createdAt) * 1000).toLocaleDateString();
                         const creatorShort = `${board.creator.slice(0, 6)}...${board.creator.slice(-4)}`;
+                        const deleteMode = board.allowAnyoneDelete ? '누구나 삭제' : '본인만 삭제';
+                        const deleteModeColor = board.allowAnyoneDelete ? '#ff9800' : '#4caf50';
                         return `
                             <div class="board-item" data-address="${board.boardAddress}"
                                  style="padding:12px;margin-bottom:8px;background:rgba(255,255,255,0.05);border-radius:8px;cursor:pointer;transition:background 0.2s;">
-                                <div style="font-weight:bold;margin-bottom:4px;">${board.name || 'Untitled Board'}</div>
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                                    <span style="font-weight:bold;">${board.name || 'Untitled Board'}</span>
+                                    <span style="font-size:10px;color:${deleteModeColor};background:${deleteModeColor}22;padding:2px 6px;border-radius:4px;">${deleteMode}</span>
+                                </div>
                                 <div style="font-size:11px;color:#888;">
                                     By ${creatorShort} • ${date}
-                                </div>
-                                <div style="font-size:10px;color:#666;margin-top:4px;">
-                                    ${board.boardAddress.slice(0, 20)}...
                                 </div>
                             </div>`;
                     }).join('');
@@ -2778,6 +2784,7 @@
         async function createBoard() {
             const nameInput = document.getElementById('new-board-name');
             const name = nameInput.value.trim();
+            const allowAnyoneDelete = document.getElementById('allow-anyone-delete').checked;
 
             if (!name) {
                 alert('Enter a board name!');
@@ -2794,8 +2801,8 @@
             createBtn.textContent = 'Creating...';
 
             try {
-                log(`Creating board: ${name}...`);
-                const tx = await registryContract.createBoard(name);
+                log(`Creating board: ${name} (delete: ${allowAnyoneDelete ? 'anyone' : 'owner only'})...`);
+                const tx = await registryContract.createBoard(name, allowAnyoneDelete);
                 const receipt = await tx.wait();
 
                 // BoardCreated 이벤트에서 주소 추출
