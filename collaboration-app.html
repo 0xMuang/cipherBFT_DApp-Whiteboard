@@ -717,18 +717,33 @@
         <button class="btn secondary" id="join-btn" disabled>Join Room</button>
     </div>
 
-    <!-- 컨트랙트 모달 -->
+    <!-- 보드 선택 모달 -->
     <div class="modal" id="contract-modal">
-        <div class="modal-content">
-            <h2>Contract Setup</h2>
-            <p>배포된 CollaborationBoard 컨트랙트 주소를 입력하세요.</p>
-            <p style="font-size:11px;color:#888;margin-bottom:12px;">
-                forge 배포 후 출력되는 주소를 복사해서 붙여넣기
-            </p>
-            <input type="text" id="contract-input" placeholder="0x... (deployed contract address)">
-            <div class="btn-group">
-                <button class="btn" id="use-existing-btn">Connect</button>
+        <div class="modal-content" style="min-width:400px;">
+            <h2>Select Whiteboard</h2>
+
+            <!-- 보드 목록 -->
+            <div id="board-list" style="max-height:200px;overflow-y:auto;margin-bottom:16px;">
+                <div style="color:#888;padding:20px;text-align:center;">Loading boards...</div>
             </div>
+
+            <!-- 새 보드 만들기 -->
+            <div style="border-top:1px solid #333;padding-top:16px;margin-top:8px;">
+                <p style="font-size:12px;color:#888;margin-bottom:8px;">Or create a new board:</p>
+                <div style="display:flex;gap:8px;">
+                    <input type="text" id="new-board-name" placeholder="Board name" style="flex:1;">
+                    <button class="btn" id="create-board-btn">Create</button>
+                </div>
+            </div>
+
+            <!-- 수동 입력 (접기) -->
+            <details style="margin-top:16px;">
+                <summary style="color:#666;cursor:pointer;font-size:11px;">Manual address entry</summary>
+                <div style="margin-top:8px;">
+                    <input type="text" id="contract-input" placeholder="0x... (contract address)">
+                    <button class="btn secondary" id="use-existing-btn" style="margin-top:8px;width:100%;">Connect</button>
+                </div>
+            </details>
         </div>
     </div>
 
@@ -822,6 +837,19 @@
             "event CanvasCleared(address indexed user)",
             "event CursorMoved(address indexed user, int32 x, int32 y)"
         ];
+
+        const REGISTRY_ABI = [
+            "function createBoard(string name) external returns (uint256 boardId, address boardAddress)",
+            "function getBoardCount() view returns (uint256)",
+            "function getBoard(uint256 boardId) view returns (address boardAddress, string name, address creator, uint256 createdAt)",
+            "function getAllBoards() view returns (tuple(address boardAddress, string name, address creator, uint256 createdAt)[])",
+            "function getUserBoards(address user) view returns (uint256[])",
+            "event BoardCreated(uint256 indexed boardId, address indexed boardAddress, string name, address indexed creator)"
+        ];
+
+        // BoardRegistry 주소 (배포 후 업데이트 필요)
+        let registryAddress = localStorage.getItem('boardRegistryAddress') || '';
+        let registryContract = null;
 
         // ===== ObjectManager =====
         class ObjectManager {
@@ -1481,8 +1509,9 @@
                     pkInput.value = '';
                 }
             });
-            document.getElementById('deploy-btn').addEventListener('click', () => document.getElementById('contract-modal').classList.add('active'));
+            document.getElementById('deploy-btn').addEventListener('click', openBoardModal);
             document.getElementById('use-existing-btn').addEventListener('click', useExistingContract);
+            document.getElementById('create-board-btn').addEventListener('click', createBoard);
             document.getElementById('join-btn').addEventListener('click', joinSession);
 
             log('Collaboration Board loaded. Connect wallet to start!');
@@ -2660,6 +2689,157 @@
             document.getElementById('join-btn').disabled = true;
 
             log('Disconnected. Select an account to connect.', 'tx');
+        }
+
+        // ===== BoardRegistry 관련 함수 =====
+        async function openBoardModal() {
+            document.getElementById('contract-modal').classList.add('active');
+            await loadBoardList();
+        }
+
+        async function loadBoardList() {
+            const boardListDiv = document.getElementById('board-list');
+            boardListDiv.innerHTML = '<div style="color:#888;padding:20px;text-align:center;">Loading boards...</div>';
+
+            // Registry 주소 확인
+            if (!registryAddress) {
+                boardListDiv.innerHTML = `
+                    <div style="color:#888;padding:20px;text-align:center;">
+                        <p>No BoardRegistry configured.</p>
+                        <p style="font-size:11px;margin-top:8px;">Enter registry address:</p>
+                        <input type="text" id="registry-input" placeholder="0x... (BoardRegistry address)" style="width:100%;margin-top:8px;">
+                        <button class="btn secondary" id="set-registry-btn" style="margin-top:8px;width:100%;">Set Registry</button>
+                    </div>`;
+
+                document.getElementById('set-registry-btn').onclick = async () => {
+                    const addr = document.getElementById('registry-input').value.trim();
+                    if (addr && ethers.utils.isAddress(addr)) {
+                        registryAddress = addr;
+                        localStorage.setItem('boardRegistryAddress', registryAddress);
+                        log(`Registry set: ${registryAddress.slice(0, 10)}...`, 'tx');
+                        await loadBoardList();
+                    } else {
+                        alert('Enter valid address!');
+                    }
+                };
+                return;
+            }
+
+            try {
+                registryContract = new ethers.Contract(registryAddress, REGISTRY_ABI, signer);
+                const boards = await registryContract.getAllBoards();
+
+                if (boards.length === 0) {
+                    boardListDiv.innerHTML = `
+                        <div style="color:#888;padding:20px;text-align:center;">
+                            No boards yet. Create one below!
+                        </div>`;
+                } else {
+                    boardListDiv.innerHTML = boards.map((board, index) => {
+                        const date = new Date(Number(board.createdAt) * 1000).toLocaleDateString();
+                        const creatorShort = `${board.creator.slice(0, 6)}...${board.creator.slice(-4)}`;
+                        return `
+                            <div class="board-item" data-address="${board.boardAddress}"
+                                 style="padding:12px;margin-bottom:8px;background:rgba(255,255,255,0.05);border-radius:8px;cursor:pointer;transition:background 0.2s;">
+                                <div style="font-weight:bold;margin-bottom:4px;">${board.name || 'Untitled Board'}</div>
+                                <div style="font-size:11px;color:#888;">
+                                    By ${creatorShort} • ${date}
+                                </div>
+                                <div style="font-size:10px;color:#666;margin-top:4px;">
+                                    ${board.boardAddress.slice(0, 20)}...
+                                </div>
+                            </div>`;
+                    }).join('');
+
+                    // 보드 클릭 이벤트
+                    boardListDiv.querySelectorAll('.board-item').forEach(item => {
+                        item.addEventListener('click', () => selectBoard(item.dataset.address));
+                        item.addEventListener('mouseenter', () => item.style.background = 'rgba(0,255,136,0.1)');
+                        item.addEventListener('mouseleave', () => item.style.background = 'rgba(255,255,255,0.05)');
+                    });
+                }
+
+            } catch (error) {
+                log(`Failed to load boards: ${error.message}`, 'error');
+                boardListDiv.innerHTML = `
+                    <div style="color:#f66;padding:20px;text-align:center;">
+                        Failed to load boards. Check registry address.
+                        <button class="btn secondary" id="reset-registry-btn" style="margin-top:12px;width:100%;">Reset Registry</button>
+                    </div>`;
+
+                document.getElementById('reset-registry-btn').onclick = () => {
+                    localStorage.removeItem('boardRegistryAddress');
+                    registryAddress = '';
+                    loadBoardList();
+                };
+            }
+        }
+
+        async function createBoard() {
+            const nameInput = document.getElementById('new-board-name');
+            const name = nameInput.value.trim();
+
+            if (!name) {
+                alert('Enter a board name!');
+                return;
+            }
+
+            if (!registryContract) {
+                alert('Registry not connected!');
+                return;
+            }
+
+            const createBtn = document.getElementById('create-board-btn');
+            createBtn.disabled = true;
+            createBtn.textContent = 'Creating...';
+
+            try {
+                log(`Creating board: ${name}...`);
+                const tx = await registryContract.createBoard(name);
+                const receipt = await tx.wait();
+
+                // BoardCreated 이벤트에서 주소 추출
+                const event = receipt.events?.find(e => e.event === 'BoardCreated');
+                if (event) {
+                    const boardAddress = event.args.boardAddress;
+                    log(`Board created: ${boardAddress}`, 'tx');
+                    nameInput.value = '';
+                    await loadBoardList();
+                    selectBoard(boardAddress);
+                } else {
+                    log('Board created!', 'tx');
+                    await loadBoardList();
+                }
+
+            } catch (error) {
+                log(`Create failed: ${error.message}`, 'error');
+            } finally {
+                createBtn.disabled = false;
+                createBtn.textContent = 'Create';
+            }
+        }
+
+        async function selectBoard(boardAddress) {
+            if (!boardAddress || !ethers.utils.isAddress(boardAddress)) {
+                alert('Invalid board address!');
+                return;
+            }
+
+            contractAddress = boardAddress;
+            contract = new ethers.Contract(contractAddress, CONTRACT_ABI, signer);
+
+            try {
+                const version = await contract.canvasVersion();
+                log(`Selected board (version ${version})`, 'tx');
+                localStorage.setItem('collaborationContract', contractAddress);
+
+                document.getElementById('contract-modal').classList.remove('active');
+                document.getElementById('deploy-btn').textContent = 'Board Selected';
+                document.getElementById('join-btn').disabled = false;
+
+            } catch (error) {
+                log(`Invalid board: ${error.message}`, 'error');
+            }
         }
 
         async function useExistingContract() {

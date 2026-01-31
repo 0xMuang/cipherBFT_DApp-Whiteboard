@@ -2,47 +2,16 @@
 pragma solidity ^0.8.19;
 
 import {Script, console} from "forge-std/Script.sol";
-import {MouseTracker} from "../src/MouseTracker.sol";
-import {OnchainWhiteboard} from "../src/OnchainWhiteboard.sol";
 import {CollaborationBoard} from "../src/CollaborationBoard.sol";
+import {BoardRegistry} from "../src/BoardRegistry.sol";
 
 contract DeployScript is Script {
     function run() public {
         vm.startBroadcast();
 
-        // MouseTracker 배포
-        MouseTracker mouseTracker = new MouseTracker();
-        console.log("MouseTracker deployed at:", address(mouseTracker));
-
-        // OnchainWhiteboard 배포
-        OnchainWhiteboard whiteboard = new OnchainWhiteboard();
-        console.log("OnchainWhiteboard deployed at:", address(whiteboard));
-
-        // CollaborationBoard 배포
-        CollaborationBoard collab = new CollaborationBoard();
-        console.log("CollaborationBoard deployed at:", address(collab));
-
-        vm.stopBroadcast();
-    }
-}
-
-contract DeployMouseTracker is Script {
-    function run() public {
-        vm.startBroadcast();
-
-        MouseTracker mouseTracker = new MouseTracker();
-        console.log("MouseTracker deployed at:", address(mouseTracker));
-
-        vm.stopBroadcast();
-    }
-}
-
-contract DeployWhiteboard is Script {
-    function run() public {
-        vm.startBroadcast();
-
-        OnchainWhiteboard whiteboard = new OnchainWhiteboard();
-        console.log("OnchainWhiteboard deployed at:", address(whiteboard));
+        // BoardRegistry 배포 (권장)
+        BoardRegistry registry = new BoardRegistry();
+        console.log("BoardRegistry deployed at:", address(registry));
 
         vm.stopBroadcast();
     }
@@ -54,6 +23,17 @@ contract DeployCollaborationBoard is Script {
 
         CollaborationBoard collab = new CollaborationBoard();
         console.log("CollaborationBoard deployed at:", address(collab));
+
+        vm.stopBroadcast();
+    }
+}
+
+contract DeployBoardRegistry is Script {
+    function run() public {
+        vm.startBroadcast();
+
+        BoardRegistry registry = new BoardRegistry();
+        console.log("BoardRegistry deployed at:", address(registry));
 
         vm.stopBroadcast();
     }
